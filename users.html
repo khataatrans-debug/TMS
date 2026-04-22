@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Quản lý User</title>
+<style>
+body{font-family:Arial;background:#f4f4f4;padding:20px}
+h2{margin-bottom:10px}
+input,select,button{padding:6px;margin:4px}
+table{width:100%;border-collapse:collapse;background:#fff}
+th,td{border:1px solid #ccc;padding:6px;text-align:center}
+th{background:#eee}
+button{cursor:pointer}
+.menu button{margin-right:6px}
+</style>
+</head>
+<body>
+
+<!-- 🔐 CHECK ADMIN -->
+<script>
+const currentUser = JSON.parse(localStorage.getItem("current_user"));
+if(!currentUser || currentUser.role!=="admin"){
+  alert("Chỉ Admin mới được vào Quản lý User!");
+  location.href = "trucking.html";
+}
+</script>
+
+<!-- MENU -->
+<div class="menu">
+  <button onclick="goPage('trucking.html')">🚚 Trucking</button>
+  <button onclick="goPage('accountant.html')">📒 Accountant</button>
+  <button onclick="goPage('performance.html')">📊 Performance</button>
+  <button onclick="goPage('overview.html')">📈 Overview</button>
+  <button onclick="goPage('users.html')">👑 Quản lý User</button>
+</div>
+
+<h2>👤 QUẢN LÝ USER & PHÂN QUYỀN</h2>
+
+<div>
+  <input id="uName" placeholder="Username">
+  <input id="uPass" placeholder="Password">
+  <select id="uRole">
+    <option value="user">User</option>
+    <option value="admin">Admin</option>
+  </select>
+  <button onclick="addUser()">➕ Thêm User</button>
+</div>
+
+<br>
+
+<table>
+  <thead>
+    <tr>
+      <th>User</th>
+      <th>Role</th>
+      <th>Trucking</th>
+      <th>Accountant</th>
+      <th>Performance</th>
+      <th>Overview</th>
+      <th>Users</th>
+      <th>Xóa</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<script>
+const USERS_KEY = "app_users";
+
+function getUsers(){
+  return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+}
+function saveUsers(users){
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function render(){
+  const users = getUsers();
+  const tb = document.getElementById("tbody");
+  tb.innerHTML = "";
+
+  users.forEach((u,i)=>{
+    const pages = u.pages || [];
+    tb.insertAdjacentHTML("beforeend",`
+      <tr>
+        <td>${u.username}</td>
+        <td>${u.role}</td>
+        <td><input type="checkbox" ${pages.includes("trucking.html")?"checked":""} onchange="toggle(${i},'trucking.html',this.checked)"></td>
+        <td><input type="checkbox" ${pages.includes("accountant.html")?"checked":""} onchange="toggle(${i},'accountant.html',this.checked)"></td>
+        <td><input type="checkbox" ${pages.includes("performance.html")?"checked":""} onchange="toggle(${i},'performance.html',this.checked)"></td>
+        <td><input type="checkbox" ${pages.includes("overview.html")?"checked":""} onchange="toggle(${i},'overview.html',this.checked)"></td>
+        <td><input type="checkbox" ${pages.includes("users.html")?"checked":""} onchange="toggle(${i},'users.html',this.checked)"></td>
+        <td><button onclick="delUser(${i})">🗑</button></td>
+      </tr>
+    `);
+  });
+}
+
+function toggle(i,page,checked){
+  const users = getUsers();
+  let p = users[i].pages || [];
+  if(checked && !p.includes(page)) p.push(page);
+  if(!checked) p = p.filter(x=>x!==page);
+  users[i].pages = p;
+  saveUsers(users);
+}
+
+function addUser(){
+  const u = uName.value.trim();
+  const p = uPass.value.trim();
+  const r = uRole.value;
+
+  if(!u || !p) return alert("Nhập đủ username & password");
+
+  const users = getUsers();
+  if(users.find(x=>x.username===u)) return alert("User đã tồn tại!");
+
+  users.push({username:u,password:p,role:r,pages:[]});
+  saveUsers(users);
+  render();
+  uName.value="";uPass.value="";
+}
+
+function delUser(i){
+  if(!confirm("Xóa user này?")) return;
+  const users = getUsers();
+  users.splice(i,1);
+  saveUsers(users);
+  render();
+}
+
+function goPage(page){
+  const user = JSON.parse(localStorage.getItem("current_user"));
+  if(!user){ location.href="login.html"; return; }
+
+  if(user.role==="admin" || (user.pages||[]).includes(page)){
+    location.href = page;
+  } else {
+    alert("Bạn không có quyền vào trang này!");
+  }
+}
+
+render();
+</script>
+
+</body>
+</html>

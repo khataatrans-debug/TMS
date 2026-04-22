@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>📊 Overview – Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body{font-family:Arial;margin:14px;color:#222}
+h2{margin:6px 0}
+.tabs{display:flex;border-bottom:2px solid #999;margin-bottom:10px}
+.tabs a{padding:6px 14px;border:1px solid #999;border-bottom:none;margin-right:4px;text-decoration:none;color:#000;background:#eee}
+.tabs a.active{background:#fff;font-weight:bold}
+.filters{display:flex;gap:8px;align-items:center;margin:10px 0}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.card{border:1px solid #ccc;padding:10px;border-radius:6px;background:#fafafa}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid #ccc;padding:6px;font-size:13px}
+th{background:#f5f6f7}
+</style>
+</head>
+
+<body>
+<div class="tabs">
+  <a href="trucking.html">🚚 Trucking</a>
+  <a href="accountant.html">📒 Accountant</a>
+  <a href="performance.html">📈 Performance</a>
+  <a href="overview.html" class="active">📊 Overview</a>
+  <a href="users.html" class="admin-only">👑 Quản lý User</a>
+</div>
+
+<h2>📊 OVERVIEW – DASHBOARD</h2>
+
+<div class="filters">
+  📅 Từ <input type="date" id="fromDate">
+  ➡️ Đến <input type="date" id="toDate">
+  📆 Tháng <select id="monthSel"><option value="">--</option></select>
+  📅 Năm <select id="yearSel"><option value="">--</option></select>
+  <button onclick="render()">🔄 Lọc</button>
+  <button onclick="clearFilter()">❌ Bỏ lọc</button>
+  <button onclick="exportExcel()">📤 Xuất Excel</button>
+  <button onclick="exportPDF()">📄 Xuất PDF</button>
+</div>
+
+<div class="cards">
+  <div class="card">📦 Tổng cont<br><b id="totalCont">0</b></div>
+  <div class="card">💰 Doanh thu<br><b id="totalMoney">0</b></div>
+  <div class="card">💸 Chi phí<br><b id="totalCost">0</b></div>
+  <div class="card">📈 Lãi/Lỗ<br><b id="totalProfit">0</b></div>
+</div>
+
+<h3>⭐ Tổng hợp theo Khách hàng</h3>
+<table>
+<thead>
+<tr>
+  <th>TT</th>
+  <th>Khách hàng</th>
+  <th>Cont</th>
+  <th>Doanh thu</th>
+  <th>Lợi nhuận</th>
+</tr>
+</thead>
+<tbody id="tblCustomer"></tbody>
+</table>
+
+<script>
+const KEY='p1';
+let store = JSON.parse(localStorage.getItem(KEY)||'[]');
+
+function money(r){return (r.qty||0)*(r.price||0);}
+function cost(r){return (r.liftFee||0)+(r.dropFee||0)+(r.depositFee||0)+(r.otherFee||0);}
+const fmt=x=>(x||0).toLocaleString('vi-VN');
+
+function render(){
+  const f=fromDate.value,t=toDate.value,m=monthSel.value,y=yearSel.value;
+  let totalMoney=0,totalCost=0,totalProfit=0;
+  const cusMap={},contSet=new Set();
+
+  const filtered = store.filter(r=>{
+    if(!r.planDate) return true;
+    if(f && r.planDate < f) return false;
+    if(t && r.planDate > t) return false;
+    if(m && r.planDate.substr(5,2)!==m) return false;
+    if(y && r.planDate.substr(0,4)!==y) return false;
+    return true;
+  });
+
+  filtered.forEach(r=>{
+    const rev = money(r);
+    const cp  = cost(r);
+
+    // 👉 gom cho card
+    totalMoney+=rev;
+    totalCost+=cp;
+    totalProfit+=rev-cp;
+
+    if(r.container && r.container.trim()!=="") contSet.add(r.container);
+
+    if(r.customer){
+      if(!cusMap[r.customer]) cusMap[r.customer]={cont:0,money:0,profit:0,cost:0};
+      if(r.container && r.container.trim()!=="") cusMap[r.customer].cont+=1;
+      cusMap[r.customer].money+=rev;
+      cusMap[r.customer].cost+=cp;
+      cusMap[r.customer].profit+=(rev-cp);
+    }
+  });
+
+  // 👉 Card = tổng toàn bộ (giống logic Tổng cont)
+  totalCont.innerText   = contSet.size;
+  totalMoney.innerText = fmt(totalMoney);
+  totalCost.innerText  = fmt(totalCost);
+  totalProfit.innerText= fmt(totalProfit);
+
+  renderTblCustomer(cusMap);
+}
+
+function renderTblCustomer(map){
+  tblCustomer.innerHTML='';
+  let sumCont=0,sumMoney=0,sumProfit=0;
+
+  Object.entries(map)
+  .sort((a,b)=>b[1].profit-a[1].profit)
+  .forEach(([k,v],i)=>{
+    sumCont+=v.cont; sumMoney+=v.money; sumProfit+=v.profit;
+    tblCustomer.insertAdjacentHTML('beforeend',`
+      <tr>
+        <td>${i+1}</td>
+        <td>${k}</td>
+        <td style="text-align:center">${v.cont}</td>
+        <td style="text-align:right">${fmt(v.money)}</td>
+        <td style="text-align:right">${fmt(v.profit)}</td>
+      </tr>
+    `);
+  });
+
+  tblCustomer.insertAdjacentHTML('beforeend',`
+    <tr style="font-weight:bold;background:#f0f0f0">
+      <td colspan="2" style="text-align:center">TỔNG</td>
+      <td style="text-align:center">${sumCont}</td>
+      <td style="text-align:right">${fmt(sumMoney)}</td>
+      <td style="text-align:right">${fmt(sumProfit)}</td>
+    </tr>
+  `);
+}
+
+function clearFilter(){
+  fromDate.value='';
+  toDate.value='';
+  monthSel.value='';
+  yearSel.value='';
+  render();
+}
+
+function exportExcel(){
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(store);
+  XLSX.utils.book_append_sheet(wb,ws,'Data');
+  XLSX.writeFile(wb,'Overview_Dashboard.xlsx');
+}
+
+function exportPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.text("OVERVIEW DASHBOARD", 14, 15);
+  doc.text(`Tong cont: ${totalCont.innerText}`, 14, 25);
+  doc.text(`Doanh thu: ${totalMoney.innerText}`, 14, 32);
+  doc.text(`Chi phi: ${totalCost.innerText}`, 14, 39);
+  doc.text(`Lai/Lo: ${totalProfit.innerText}`, 14, 46);
+
+  let y = 60;
+  doc.text("Khach hang | Cont | Doanh thu | Loi nhuan", 14, y);
+  y += 6;
+
+  [...tblCustomer.rows].forEach(r=>{
+    const line = [...r.cells].map(td=>td.innerText).join(" | ");
+    doc.text(line, 14, y);
+    y += 6;
+    if(y > 280){ doc.addPage(); y = 20; }
+  });
+
+  doc.save("Overview_Dashboard.pdf");
+}
+
+(function init(){
+  const years=new Set();
+  store.forEach(r=>{if(r.planDate) years.add(r.planDate.substr(0,4));});
+  [...years].forEach(y=>yearSel.insertAdjacentHTML('beforeend',`<option>${y}</option>`));
+  for(let i=1;i<=12;i++){
+    const mm=('0'+i).slice(-2);
+    monthSel.insertAdjacentHTML('beforeend',`<option value="${mm}">${mm}</option>`);
+  }
+})();
+render();
+</script>
+</body>
+</html>

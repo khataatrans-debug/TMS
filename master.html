@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>📂 MASTER DATA</title>
+<style>
+body{font-family:Arial;margin:16px;background:#f5f7fb}
+h2{margin:6px 0}
+.tabs{display:flex;border-bottom:2px solid #999;margin-bottom:10px}
+.tabs a{padding:8px 16px;border:1px solid #999;border-bottom:none;margin-right:4px;
+  text-decoration:none;color:#000;background:#eee;cursor:pointer}
+.tabs a.active{background:#fff;font-weight:bold}
+
+.box{background:#fff;border:1px solid #ccc;padding:12px;border-radius:6px}
+
+.form-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px}
+label{font-size:12px}
+input,select,button{padding:6px;font-size:13px;width:100%;box-sizing:border-box}
+button{cursor:pointer}
+
+table{border-collapse:collapse;width:100%;margin-top:6px}
+th,td{border:1px solid #ccc;padding:6px;font-size:13px;text-align:center}
+th{background:#f2f2f2}
+td:nth-child(3){text-align:left}
+.action button{margin:0 2px}
+</style>
+</head>
+
+<body>
+
+<h2>📂 MASTER DATA</h2>
+
+<div class="tabs">
+  <a class="active" onclick="openTab('customer',this)">👤 Khách hàng</a>
+  <a onclick="openTab('truck',this)">🚚 Truck</a>
+  <a onclick="openTab('location',this)">📍 Location</a>
+  <a onclick="openTab('carrier',this)">🚢 Hãng tàu</a>
+</div>
+
+<div class="box">
+
+<!-- ===== CUSTOMER ===== -->
+<div id="customer" class="page">
+  <div class="form-grid">
+    <div><label>Tên KH</label><input id="cusName"></div>
+    <div><label>Mã KH</label><input id="cusCode"></div>
+    <div><label>Kho</label><input id="cusFactory"></div>
+    <div><label>km</label><input id="cusKm" type="number"></div>
+    <div><label>Đơn giá</label><input id="cusPrice" type="number" step="1"></div>
+  </div>
+  <button onclick="addCustomer()">➕ Thêm</button>
+  <table>
+    <thead><tr><th>Tên</th><th>Mã</th><th>Kho</th><th>km</th><th>Đơn giá</th><th>Sửa</th><th>Xóa</th></tr></thead>
+    <tbody id="cusBody"></tbody>
+  </table>
+</div>
+
+<!-- ===== TRUCK ===== -->
+<div id="truck" class="page" style="display:none">
+  <div class="form-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div><label>Số xe</label><input id="truckNo"></div>
+    <div><label>Số mooc</label><input id="moocNo"></div>
+    <div><label>Tên lái xe</label><input id="driverName"></div>
+  </div>
+  <button onclick="addTruck()">➕ Thêm</button>
+  <table>
+    <thead><tr><th>Số xe</th><th>Số mooc</th><th>Lái xe</th><th>Sửa</th><th>Xóa</th></tr></thead>
+    <tbody id="truckBody"></tbody>
+  </table>
+</div>
+
+<!-- ===== LOCATION ===== -->
+<div id="location" class="page" style="display:none">
+  <div class="form-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div><label>Nơi lấy</label><input id="locPickup"></div>
+    <div><label>Nơi trả</label><input id="locDrop"></div>
+  </div>
+  <button onclick="addLocation()">➕ Thêm</button>
+  <table>
+    <thead><tr><th>Nơi lấy</th><th>Nơi trả</th><th>Sửa</th><th>Xóa</th></tr></thead>
+    <tbody id="locBody"></tbody>
+  </table>
+</div>
+
+<!-- ===== CARRIER ===== -->
+<div id="carrier" class="page" style="display:none">
+  <div class="form-grid" style="grid-template-columns:1fr">
+    <div><label>Tên hãng tàu</label><input id="carName"></div>
+  </div>
+  <button onclick="addCarrier()">➕ Thêm</button>
+  <table>
+    <thead><tr><th>Tên hãng tàu</th><th>Sửa</th><th>Xóa</th></tr></thead>
+    <tbody id="carBody"></tbody>
+  </table>
+</div>
+
+</div>
+
+<script>
+const KEY="MASTER_ALL_V4";
+if(!localStorage.getItem(KEY)){
+  localStorage.setItem(KEY,JSON.stringify({
+    customers:[], trucks:[], locations:[], carriers:[]
+  }));
+}
+let DB=JSON.parse(localStorage.getItem(KEY));
+let editIndex=null;
+
+/* ===== TAB ===== */
+function openTab(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.style.display="none");
+  document.getElementById(id).style.display="block";
+  document.querySelectorAll('.tabs a').forEach(a=>a.classList.remove("active"));
+  el.classList.add("active");
+}
+
+/* ===== CUSTOMER ===== */
+function addCustomer(){
+  if(!cusName.value||!cusCode.value||!cusFactory.value||!cusKm.value||!cusPrice.value)
+    return alert("Vui lòng nhập đủ thông tin Khách hàng!");
+
+  const o={name:cusName.value,code:cusCode.value,factory:cusFactory.value,km:cusKm.value,price:cusPrice.value};
+  if(editIndex!==null){DB.customers[editIndex]=o;editIndex=null;}
+  else DB.customers.push(o);
+  save(); clearCustomer(); renderCustomer();
+}
+
+function renderCustomer(){
+  cusBody.innerHTML="";
+  DB.customers.forEach((c,i)=>{
+    cusBody.innerHTML+=`
+    <tr>
+      <td>${c.name}</td><td>${c.code}</td><td>${c.factory}</td>
+      <td>${c.km}</td><td>${Number(c.price).toLocaleString('vi-VN')}</td>
+      <td><button onclick="editCustomer(${i})">✏️</button></td>
+      <td><button onclick="DB.customers.splice(${i},1);save();renderCustomer()">🗑️</button></td>
+    </tr>`;
+  });
+}
+
+function editCustomer(i){
+  const c=DB.customers[i]; editIndex=i;
+  cusName.value=c.name;cusCode.value=c.code;cusFactory.value=c.factory;cusKm.value=c.km;cusPrice.value=c.price;
+}
+function clearCustomer(){cusName.value="";cusCode.value="";cusFactory.value="";cusKm.value="";cusPrice.value="";}
+
+/* ===== TRUCK ===== */
+function addTruck(){
+  if(!truckNo.value||!moocNo.value||!driverName.value)
+    return alert("Vui lòng nhập đủ Số xe – Mooc – Lái xe!");
+
+  const o={truck:truckNo.value,mooc:moocNo.value,driver:driverName.value};
+  if(editIndex!==null){DB.trucks[editIndex]=o;editIndex=null;}
+  else DB.trucks.push(o);
+  save(); truckNo.value="";moocNo.value="";driverName.value="";renderTruck();
+}
+
+function renderTruck(){
+  truckBody.innerHTML="";
+  DB.trucks.forEach((t,i)=>{
+    truckBody.innerHTML+=`
+    <tr><td>${t.truck}</td><td>${t.mooc}</td><td>${t.driver}</td>
+    <td><button onclick="editTruck(${i})">✏️</button></td>
+    <td><button onclick="DB.trucks.splice(${i},1);save();renderTruck()">🗑️</button></td></tr>`;
+  });
+}
+function editTruck(i){
+  const t=DB.trucks[i]; editIndex=i;
+  truckNo.value=t.truck; moocNo.value=t.mooc; driverName.value=t.driver;
+}
+
+/* ===== LOCATION ===== */
+function addLocation(){
+  if(!locPickup.value||!locDrop.value)
+    return alert("Vui lòng nhập đủ Nơi lấy & Nơi trả!");
+
+  const o={pickup:locPickup.value,drop:locDrop.value};
+  if(editIndex!==null){DB.locations[editIndex]=o;editIndex=null;}
+  else DB.locations.push(o);
+  save(); locPickup.value="";locDrop.value="";renderLocation();
+}
+
+function renderLocation(){
+  locBody.innerHTML="";
+  DB.locations.forEach((l,i)=>{
+    locBody.innerHTML+=`
+    <tr><td>${l.pickup}</td><td>${l.drop}</td>
+    <td><button onclick="editLocation(${i})">✏️</button></td>
+    <td><button onclick="DB.locations.splice(${i},1);save();renderLocation()">🗑️</button></td></tr>`;
+  });
+}
+function editLocation(i){
+  const l=DB.locations[i]; editIndex=i;
+  locPickup.value=l.pickup; locDrop.value=l.drop;
+}
+
+/* ===== CARRIER ===== */
+function addCarrier(){
+  if(!carName.value)
+    return alert("Vui lòng nhập Tên hãng tàu!");
+
+  const o={name:carName.value};
+  if(editIndex!==null){DB.carriers[editIndex]=o;editIndex=null;}
+  else DB.carriers.push(o);
+  save(); carName.value="";renderCarrier();
+}
+
+function renderCarrier(){
+  carBody.innerHTML="";
+  DB.carriers.forEach((c,i)=>{
+    carBody.innerHTML+=`
+    <tr><td>${c.name}</td>
+    <td><button onclick="editCarrier(${i})">✏️</button></td>
+    <td><button onclick="DB.carriers.splice(${i},1);save();renderCarrier()">🗑️</button></td></tr>`;
+  });
+}
+function editCarrier(i){
+  const c=DB.carriers[i]; editIndex=i; carName.value=c.name;
+}
+
+function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
+
+renderCustomer();renderTruck();renderLocation();renderCarrier();
+</script>
+
+</body>
+</html>
+ 

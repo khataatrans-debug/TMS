@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Login</title>
+<style>
+body{font-family:Arial;background:#f3f3f3}
+.box{width:300px;margin:100px auto;padding:20px;background:#fff;border-radius:8px;box-shadow:0 0 10px #ccc}
+input,button{width:100%;padding:8px;margin:6px 0}
+#msg{color:red;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="box">
+  <h3>Đăng nhập</h3>
+  <input id="username" placeholder="Username">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <div id="msg"></div>
+</div>
+
+<script>
+const USERS_KEY = "app_users";
+const CURRENT_KEY = "current_user";
+
+/* Khởi tạo user nếu chưa có */
+if (!localStorage.getItem(USERS_KEY)) {
+  localStorage.setItem(USERS_KEY, JSON.stringify([
+    {
+      username: "admin",
+      password: "123456",
+      role: "admin",
+      pages: [
+        "trucking.html",
+        "accountant.html",
+        "performance.html",
+        "overview.html",
+        "users.html"
+      ]
+    },
+    {
+      username: "kevin",
+      password: "123456",
+      role: "user",
+      pages: ["accountant.html", "performance.html"]
+    },
+    {
+      username: "vantai",
+      password: "123456",
+      role: "user",
+      pages: ["trucking.html"]
+    }
+  ]));
+}
+
+/* Login */
+function login(){
+  const u = username.value.trim();
+  const p = password.value.trim();
+  const users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+
+  const found = users.find(x => x.username===u && x.password===p);
+  if(!found){
+    msg.innerText = "Sai username hoặc password!";
+    return;
+  }
+
+  localStorage.setItem(CURRENT_KEY, JSON.stringify(found));
+  location.href = "trucking.html";
+}
+</script>
+
+</body>
+</html>

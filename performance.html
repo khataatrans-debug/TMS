@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>📊 Performance</title>
+
+  <style>
+  body{font-family:Arial;margin:14px;color:#222}
+  h2{margin:6px 0}
+
+  /* TAB MENU */
+  .tabs{display:flex;border-bottom:2px solid #999;margin-bottom:10px}
+  .tabs a{
+    padding:6px 14px;
+    border:1px solid #999;
+    border-bottom:none;
+    margin-right:4px;
+    text-decoration:none;
+    color:#000;
+    background:#eee
+  }
+  .tabs a.active{background:#fff;font-weight:bold}
+
+  /* 🔒 LOCK TAB */
+  .tabs a.locked{
+    opacity:0.4;
+    pointer-events:none;
+    cursor:not-allowed;
+  }
+
+  .search-bar{display:flex;gap:6px;margin-bottom:10px}
+  input,select,button{padding:6px;font-size:13px}
+  button{cursor:pointer}
+  .table-wrap{max-height:65vh;overflow:auto;border:1px solid #ccc}
+  table{border-collapse:collapse;width:100%}
+  th,td{border:1px solid #ccc;padding:6px;font-size:13px;white-space:nowrap}
+  th{background:#f5f6f7;position:sticky;top:0}
+  </style>
+</head>
+
+<body>
+
+<div class="tabs">
+  <a href="trucking.html" data-page="trucking.html">🚚 Trucking</a>
+  <a href="accountant.html" data-page="accountant.html">📒 Accountant</a>
+  <a href="performance.html" data-page="performance.html" class="active">📈 Performance</a>
+  <a href="overview.html" data-page="overview.html">📊 Overview</a>
+  <a href="users.html" data-page="users.html" class="admin-only">👑 Quản lý User</a>
+</div>
+
+<h2>📊 PERFORMANCE – TỔNG HỢP LÃI / LỖ</h2>
+
+<div class="search-bar">
+  <select id="mode">
+    <option value="customer">📊 Theo Khách hàng</option>
+    <option value="vehicle">🚚 Theo Xe</option>
+  </select>
+
+  <input id="kw" placeholder="🔍 Nhập KH / Số xe..." style="width:240px">
+
+  <input id="month" type="number" min="1" max="12" placeholder="Tháng" style="width:80px">
+  <input id="year" type="number" placeholder="Năm" style="width:100px">
+
+  <button onclick="render()">Lọc</button>
+  <button onclick="resetFilter()">Bỏ lọc</button>
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+  <th>TT</th>
+  <th id="colName">Khách hàng / Xe</th>
+  <th>Doanh thu</th>
+  <th>Tổng chi phí</th>
+  <th>Lãi / Lỗ</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<!-- 👉 AUTH & PERMISSION (CHUNG – BẮT BUỘC) -->
+<script src="auth.js"></script>
+
+<script>
+const KEY='p1';
+let store = JSON.parse(localStorage.getItem(KEY) || '[]');
+const fmt = x => (x||x===0) ? x.toLocaleString('vi-VN') : '';
+
+function money(r){ return (r.qty||0)*(r.price||0); }
+function cost(r){ return (r.liftFee||0)+(r.dropFee||0)+(r.depositFee||0)+(r.otherFee||0); }
+
+function render(){
+  const mode = document.getElementById('mode').value;
+  const kw   = document.getElementById('kw').value.trim().toLowerCase();
+  const m    = +document.getElementById('month').value;
+  const y    = +document.getElementById('year').value;
+
+  const map = {};
+  tbody.innerHTML = '';
+
+  store.forEach(r=>{
+    if(!r.planDate) return;
+    const d = new Date(r.planDate);
+    if(m && d.getMonth()+1 !== m) return;
+    if(y && d.getFullYear() !== y) return;
+
+    const key = mode==='customer' ? (r.customer||'') : (r.vehicleNo||'');
+    if(!key) return;
+    if(kw && !key.toLowerCase().includes(kw)) return;
+
+    if(!map[key]) map[key]={money:0,cost:0};
+    map[key].money += money(r);
+    map[key].cost  += cost(r);
+  });
+
+  let i=0;
+  Object.entries(map).forEach(([k,v])=>{
+    i++;
+    const profit = v.money - v.cost;
+    tbody.insertAdjacentHTML('beforeend',`
+      <tr>
+        <td>${i}</td>
+        <td>${k}</td>
+        <td style="text-align:right">${fmt(v.money)}</td>
+        <td style="text-align:right">${fmt(v.cost)}</td>
+        <td style="text-align:right;color:${profit>=0?'green':'red'}">
+          ${fmt(profit)}
+        </td>
+      </tr>
+    `);
+  });
+
+  document.getElementById('colName').innerText =
+    mode==='customer' ? 'Khách hàng' : 'Số xe';
+}
+
+function resetFilter(){
+  kw.value=''; month.value=''; year.value='';
+  render();
+}
+
+render();
+</script>
+
+</body>
+</html>

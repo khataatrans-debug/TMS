@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>💰 Accountant</title>
+
+<style>
+body{font-family:Arial;margin:14px;color:#222}
+h2{margin:6px 0}
+
+/* TAB MENU */
+.tabs{display:flex;border-bottom:2px solid #999;margin-bottom:10px}
+.tabs a{
+  padding:6px 14px;
+  border:1px solid #999;
+  border-bottom:none;
+  margin-right:4px;
+  text-decoration:none;
+  color:#000;
+  background:#eee
+}
+.tabs a.active{background:#fff;font-weight:bold}
+
+/* ===== Accountant layout ===== */
+.search-bar{display:flex;gap:6px;margin-bottom:10px}
+input,button{padding:6px;font-size:13px}
+button{cursor:pointer}
+.cost-box{border:1px dashed #aaa;padding:10px;margin-bottom:10px}
+.cost-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.table-wrap{max-height:60vh;overflow:auto;border:1px solid #ccc}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid #ccc;padding:6px;font-size:13px;white-space:nowrap}
+th{background:#f5f6f7;position:sticky;top:0}
+</style>
+</head>
+
+<body>
+
+<!-- 🔹 MENU TABS -->
+<div class="tabs">
+  <a href="trucking.html">🚚 Trucking</a>
+  <a href="accountant.html" class="active">💰 Accountant</a>
+  <a href="performance.html">📈 Performance</a>
+  <a href="overview.html">📊 Overview</a>
+  <a href="users.html">👑 Quản lý User</a>
+</div>
+
+<h2>💰 KẾ TOÁN – NHẬP CHI PHÍ CONTAINER</h2>
+
+<div class="search-bar">
+  <input id="search" placeholder="🔍 Nhập CONT / KHÁCH / SỐ XE..." style="width:320px">
+  <button onclick="render()">Tìm</button>
+  <button onclick="resetSearch()">Bỏ Lọc</button>
+  <button onclick="exportExcel()">📤 Xuất Excel</button>
+</div>
+
+<div class="cost-box">
+  <b>Nhập chi phí theo Container</b>
+  <div class="cost-grid">
+    <div><div>Container</div><input id="costContainer" readonly></div>
+    <div><div>Phí nâng</div><input id="liftFee" type="number"></div>
+    <div><div>Phí hạ</div><input id="dropFee" type="number"></div>
+    <div><div>Phí cược</div><input id="depositFee" type="number"></div>
+    <div><div>Chi phí khác</div><input id="otherFee" type="number"></div>
+    <div style="display:flex;align-items:end">
+      <button onclick="saveCost()">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+  <th>TT</th><th>Ngày KH</th><th>Khách</th><th>Mã KH</th>
+  <th>Số xe</th><th>Container</th><th>Kho</th>
+  <th>Tiền VC</th><th>Phí nâng</th><th>Phí hạ</th>
+  <th>Phí cược</th><th>Khác</th><th>Tổng CP</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded",()=>{
+
+/* 👉 LẤY DATA TỪ TRUCKING */
+const TRUCKING_KEY = "TRUCKING_PLAN";
+let store = JSON.parse(localStorage.getItem(TRUCKING_KEY) || "[]");
+
+const fmt = x => (x === undefined || x === null || x === "" || Number(x) === 0) 
+  ? "" 
+  : Number(x).toLocaleString('vi-VN');
+
+window.render = function(){
+  const kw = search.value.trim().toLowerCase();
+  tbody.innerHTML = "";
+
+  store.filter(r =>
+    !kw ||
+    (r.containerNo||"").toLowerCase().includes(kw) ||
+    (r.customer||"").toLowerCase().includes(kw) ||
+    (r.vehicleNo||"").toLowerCase().includes(kw)
+  ).forEach((r,i)=>{
+    const money = (r.qty && r.price) ? r.qty * r.price : "";
+    const cost  = (r.liftFee||0)+(r.dropFee||0)+(r.depositFee||0)+(r.otherFee||0);
+
+    tbody.insertAdjacentHTML("beforeend",`
+      <tr>
+        <td>${i+1}</td>
+        <td>${r.planDate||""}</td>
+        <td>${r.customer||""}</td>
+        <td>${r.cusCode||""}</td>
+        <td>${r.vehicleNo||""}</td>
+        <td>${r.containerNo||""}</td>
+        <td>${r.factory||""}</td>
+        <td style="text-align:right">${fmt(money)}</td>
+        <td style="text-align:right">${fmt(r.liftFee)}</td>
+        <td style="text-align:right">${fmt(r.dropFee)}</td>
+        <td style="text-align:right">${fmt(r.depositFee)}</td>
+        <td style="text-align:right">${fmt(r.otherFee)}</td>
+        <td style="text-align:right">${fmt(cost)}</td>
+      </tr>
+    `);
+  });
+};
+
+search.addEventListener("change",()=>{
+  const kw = search.value.trim().toLowerCase();
+  const r = store.find(x =>
+    (x.containerNo||"").toLowerCase() === kw ||
+    (x.customer||"").toLowerCase().includes(kw) ||
+    (x.vehicleNo||"").toLowerCase().includes(kw)
+  );
+
+  if(!r){
+    alert("❌ Không tìm thấy Container / Khách / Số xe");
+    costContainer.value="";
+    liftFee.value=dropFee.value=depositFee.value=otherFee.value="";
+    return;
+  }
+
+  costContainer.value = r.containerNo;
+  liftFee.value = r.liftFee || "";
+  dropFee.value = r.dropFee || "";
+  depositFee.value = r.depositFee || "";
+  otherFee.value = r.otherFee || "";
+});
+
+window.saveCost=function(){
+  const cont = costContainer.value.trim();
+  if(!cont) return alert("Chưa chọn container");
+
+  const r = store.find(x=>x.containerNo===cont);
+  if(!r) return alert("❌ Container không hợp lệ");
+
+  r.liftFee=+liftFee.value||0;
+  r.dropFee=+dropFee.value||0;
+  r.depositFee=+depositFee.value||0;
+  r.otherFee=+otherFee.value||0;
+
+  localStorage.setItem(TRUCKING_KEY,JSON.stringify(store));
+  render();
+  alert("✅ Đã lưu chi phí");
+
+  costContainer.value="";
+  liftFee.value=dropFee.value=depositFee.value=otherFee.value="";
+};
+
+window.resetSearch=function(){
+  search.value="";
+  render();
+  costContainer.value="";
+  liftFee.value=dropFee.value=depositFee.value=otherFee.value="";
+};
+
+window.exportExcel=function(){
+  alert("📤 Xuất Excel – sẽ nối sau");
+};
+
+render();
+});
+</script>
+
+</body>
+</html>
