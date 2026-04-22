@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>🚚 Trucking Plan</title>
+<style>
+/* ===== TOP MENU ===== */
+.top-menu{
+  display:flex;
+  gap:4px;
+  background:#ffffff;
+  padding:8px 20px;
+  border-bottom:1px solid #e5e7eb;
+}
+
+.top-menu a{
+  padding:6px 14px;
+  text-decoration:none;
+  font-size:13px;
+  color:#1f2937;
+  border-radius:6px;
+  font-weight:500;
+}
+
+.top-menu a:hover{
+  background:#eef2ff;
+}
+
+.top-menu a.active{
+  background:#1f3c88;
+  color:#fff;
+}
+/* ===== GLOBAL ===== */
+body{
+  font-family:"Segoe UI", Arial;
+  margin:0;
+  background:#f1f4f9;
+  color:#1f2937;
+}
+
+/* ===== HEADER BAR ===== */
+.header-bar{
+  background:#1f3c88;
+  color:#fff;
+  padding:14px 24px;
+  font-size:18px;
+  font-weight:600;
+}
+
+/* ===== CARD ===== */
+.card{
+  background:#fff;
+  margin:16px 20px;
+  padding:18px;
+  border-radius:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+}
+
+.card-title{
+  font-size:14px;
+  font-weight:600;
+  color:#1f3c88;
+}
+
+/* ===== CARD HEADER (NEW) ===== */
+.card-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:14px;
+}
+
+.header-actions{
+  display:flex;
+  gap:8px;
+}
+
+.header-actions button{
+  padding:6px 12px;
+  font-size:12px;
+}
+
+/* ===== FORM GRID ===== */
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px 14px;
+}
+.form-grid label{
+  font-size:12px;
+  font-weight:500;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+/* ===== INPUT ===== */
+input,select{
+  height:30px;
+  font-size:12px;
+  border:1px solid #d1d5db;
+  border-radius:6px;
+  background:#fff;
+}
+input:focus,select:focus{
+  outline:none;
+  border-color:#1f3c88;
+  box-shadow:0 0 0 2px rgba(31,60,136,.15);
+}
+
+/* ===== BUTTON ===== */
+button{
+  padding:7px 16px;
+  font-size:13px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:600;
+  transition:.2s;
+}
+
+button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 3px 8px rgba(0,0,0,.15);
+}
+
+.primary{background:#1f3c88;color:#fff;}
+.gray{background:#6b7280;color:#fff;}
+
+/* ===== TOOLBAR LINE (FILTER + SUMMARY) ===== */
+.toolbar-line{
+  margin-top:18px;
+  padding-top:14px;
+  border-top:1px solid #e5e7eb;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:12px;
+}
+
+.filter-inline{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.summary-inline{
+  display:flex;
+  gap:16px;
+  align-items:center;
+  font-weight:600;
+  color:#1f3c88;
+}
+
+.summary-inline .total{
+  margin-left:10px;
+}
+
+/* ===== TABLE ===== */
+.table-wrap{
+  margin:16px 20px;
+  background:#fff;
+  border-radius:10px;
+  overflow:auto;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+}
+
+table{
+  border-collapse:collapse;
+  width:100%;
+  font-size:12px;
+}
+
+th{
+  background:#1f3c88;
+  color:#fff;
+  padding:8px;
+  position:sticky;
+  top:0;
+}
+
+td{
+  border:1px solid #e5e7eb;
+  padding:6px;
+  text-align:center;
+}
+
+tr:nth-child(even){
+  background:#f9fafb;
+}
+
+tr:hover{
+  background:#eef2ff;
+}
+
+/* ===== STICKY FORM HEADER ===== */
+.card-header{
+  position:sticky;
+  top:0;
+  background:#fff;
+  z-index:50;
+  padding:10px 0;
+  border-bottom:1px solid #e5e7eb;
+}
+input[type="file"]{
+  width:60px;
+}
+</style>
+</head>
+<body>
+<div id="menuContainer"></div>
+<div class="header-bar">🚚 KẾ HOẠCH VẬN TẢI</div>
+
+
+<div class="card">
+
+  <!-- HEADER + ACTION -->
+  <div class="card-header">
+    <div class="card-title">📝 Thông tin kế hoạch</div>
+    <div class="header-actions">
+      <button type="button" onclick="save()">💾 Lưu</button>
+      <button type="button" onclick="newForm()">➕ Tạo mới</button>
+      <button type="button" onclick="cancelEdit()">❌ Hủy</button>
+      <button type="button" onclick="exportExcel()">📊 Xuất Excel</button>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <div class="form-grid">
+
+    <label>Ngày KH<input id="planDate" type="date"></label>
+    <label>Cut-off<input id="cutoff" type="date"></label>
+    <label>Ngày trả<input id="returnDate" type="date"></label>
+
+    <label>Khách hàng<select id="customer"></select></label>
+    <label>Mã KH<input id="cusCode" readonly></label>
+    <label>Booking<input id="booking"></label>
+
+    <label>Carrier<select id="carrier"></select></label>
+    <label>Kho / Nhà máy<select id="factory"></select></label>
+    <label>KM<input id="km" readonly></label>
+
+    <label>Số xe<select id="vehicleNo"></select></label>
+    <label>Mooc<select id="mooc"></select></label>
+    <label>Lái xe<input id="driver" readonly></label>
+
+    <label>Số lượng<input id="qty" type="number" min="1"></label>
+    <label>Đơn giá<input id="price"></label>
+    <label>Số Container<input id="containerNo"></label>
+
+    <label style="grid-column: span 4;">
+      Ghi chú
+      <input id="note">
+    </label>
+
+    <div style="grid-column: span 7;">
+  <label for="attachFile">Attach File</label>
+  <input id="attachFile" type="file">
+</div>
+
+  </div>
+
+  <!-- FILTER + SUMMARY CÙNG HÀNG -->
+  <div class="toolbar-line">
+
+    <div class="filter-inline">
+      <input type="text" id="searchKeyword" placeholder="Tìm khách, xe, container...">
+      <input type="date" id="fromDate">
+      <input type="date" id="toDate">
+      <button class="primary" onclick="searchData()">Lọc</button>
+      <button class="gray" onclick="clearSearch()">Reset</button>
+    </div>
+
+    <div class="summary-inline">
+      <label>
+        <input type="checkbox" id="filterArranged">
+        Đã sắp
+      </label>
+
+      <label>
+        <input type="checkbox" id="filterNotArranged">
+        Chưa sắp
+      </label>
+
+      <span class="total">
+        Tổng sản lượng:
+        <strong id="totalQty">0</strong>
+      </span>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>TT</th><th>Ngày</th><th>Khách</th><th>Mã KH</th><th>Kho</th><th>KM</th>
+<th>Số xe</th><th>Mooc</th><th>Lái xe</th>
+<th>SL</th><th>Đơn giá</th><th>Container</th><th>Ghi chú</th>
+<th>Attach</th><th>Sửa</th><th>Xóa</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded",()=>{
+
+const customer = document.getElementById("customer");
+const factory = document.getElementById("factory");
+const vehicleNo = document.getElementById("vehicleNo");
+const mooc = document.getElementById("mooc");
+const driver = document.getElementById("driver");
+const km = document.getElementById("km");
+const price = document.getElementById("price");
+const cusCode = document.getElementById("cusCode");
+const qty = document.getElementById("qty");
+const containerNo = document.getElementById("containerNo");
+const note = document.getElementById("note");
+const tbody = document.getElementById("tbody");
+const totalQty = document.getElementById("totalQty");
+const filterArranged = document.getElementById("filterArranged");
+const filterNotArranged = document.getElementById("filterNotArranged");
+const searchKeyword = document.getElementById("searchKeyword");
+const fromDate = document.getElementById("fromDate");
+const toDate = document.getElementById("toDate");
+/* ===== MENU SYSTEM ===== */
+
+const loginUser = JSON.parse(localStorage.getItem("LOGIN_USER") || "{}");
+
+const menuHTML = `
+<div class="top-menu">
+  <a href="trucking.html">🚚 Trucking</a>
+  <a href="accountant.html">📒 Accountant</a>
+  <a href="performance.html">📈 Performance</a>
+  <a href="overview.html">📊 Overview</a>
+  ${loginUser.role === "admin"
+    ? `<a href="users.html">👑 Quản lý User</a>`
+    : ``}
+</div>
+`;
+
+document.getElementById("menuContainer").innerHTML = menuHTML;
+
+// auto active
+const currentPage = location.pathname.split("/").pop();
+document.querySelectorAll(".top-menu a").forEach(a=>{
+  if(a.getAttribute("href") === currentPage){
+    a.classList.add("active");
+  }
+});
+
+const MASTER_KEY="MASTER_ALL_V4";
+let DBM=JSON.parse(localStorage.getItem(MASTER_KEY)||"{}");
+const customers=DBM.customers||[];
+const carriers=(DBM.carriers||[]).map(x=>x.name);
+const trucks=DBM.trucks||[];
+
+function fillSelect(id,list){
+  const s=document.getElementById(id);
+  s.innerHTML='<option value="">-- Chọn --</option>';
+  list.forEach(v=>s.insertAdjacentHTML("beforeend",`<option>${v}</option>`));
+}
+
+async function loadMaster(){
+
+ const res = await fetch("/api/master");
+ const data = await res.json();
+
+ fillSelect(
+   "customer",
+   data.customers.map(x=>x.CustomerName)
+ );
+
+ fillSelect(
+   "carrier",
+   data.carriers.map(x=>x.CarrierName)
+ );
+
+ fillSelect(
+   "truck",
+   data.trucks.map(x=>x.TruckNo)
+ );
+
+}
+
+loadMaster();
+
+fillSelect("customer",[...new Set(customers.map(c=>c.name))]);
+fillSelect("carrier",carriers);
+fillSelect(
+  "vehicleNo",
+  [...new Set(trucks.map(t=>t.truck))]
+);
+
+customer.onchange=function(){
+  factory.innerHTML='<option value="">-- Chọn kho --</option>';
+  km.value=""; price.value=""; cusCode.value="";
+  const list=customers.filter(c=>c.name===this.value);
+  if(list.length) cusCode.value=list[0].code||"";
+  list.forEach(c=>{
+    factory.insertAdjacentHTML("beforeend",
+      `<option value="${c.factory}" data-km="${c.km}" data-price="${c.price}">
+      ${c.factory}</option>`);
+  });
+};
+
+factory.onchange=function(){
+  const opt=this.selectedOptions[0];
+  if(!opt)return;
+  km.value=opt.dataset.km||"";
+  price.value=opt.dataset.price||"";
+};
+
+vehicleNo.onchange=function(){
+  mooc.innerHTML='<option value="">-- Chọn mooc --</option>';
+  driver.value="";
+  let list=trucks.filter(x=>x.truck===this.value);
+  if(list.length){
+    driver.value=list[0].driver||"";
+    let moocs=[];
+    list.forEach(t=>{
+      if(t.mooc){
+        t.mooc.split(",").map(m=>m.trim()).forEach(m=>moocs.push(m));
+      }
+    });
+    moocs=[...new Set(moocs)];
+    moocs.forEach(m=>mooc.innerHTML+=`<option>${m}</option>`);
+  }
+};
+
+const KEY="TRUCKING_PLAN";
+window.store = JSON.parse(localStorage.getItem(KEY)||"[]");
+window.editId = null;
+function isArranged(r){
+  return r.containerNo && r.vehicleNo;
+}
+
+filterArranged.onchange = render;
+filterNotArranged.onchange = render;
+function saveLocal(){ localStorage.setItem(KEY,JSON.stringify(store)); }
+
+window.save = function(){
+
+  const planDateEl = document.getElementById("planDate");
+  const customerEl = document.getElementById("customer");
+  const factoryEl = document.getElementById("factory");
+  const vehicleNoEl = document.getElementById("vehicleNo");
+  const qtyEl = document.getElementById("qty");
+  const fileInput = document.getElementById("attachFile");
+  
+
+  if(!planDateEl.value){
+    alert("Chưa chọn ngày kế hoạch");
+    return;
+  }
+
+  if(!customerEl.value){
+    alert("Chưa nhập khách hàng");
+    return;
+  }
+
+  if(!factoryEl.value){
+    alert("Chưa chọn kho");
+    return;
+  }
+
+ 
+  if(!editId && (!qtyEl.value || Number(qtyEl.value) <= 0)){
+    alert("Số lượng phải lớn hơn 0");
+    return;
+  }
+
+  function finish(attachName="", attachData=""){
+
+    const qtyVal = Number(qtyEl.value || 1);
+
+    if(editId){
+
+  let i = store.findIndex(x=>x.id===editId);
+  if(i!==-1){
+    store[i]={
+      ...store[i],
+      planDate:planDateEl.value,
+      customer:customerEl.value,
+      cusCode: cusCode.value,
+      factory:factoryEl.value,
+      km: km.value,
+      vehicleNo:vehicleNoEl.value,
+      mooc: mooc.value,
+      driver: driver.value,
+      price: price.value,
+      containerNo: containerNo.value,   // 🔥 BẮT BUỘC PHẢI CÓ
+      note: note.value,                 // 🔥 thêm luôn
+      attachName: attachName || store[i].attachName,
+      attachData: attachData || store[i].attachData
+    };
+  }
+
+}else{
+
+      for(let i=0;i<qtyVal;i++){
+        store.push({
+          id:Date.now().toString()+i,
+          planDate:planDateEl.value,
+          customer:customerEl.value,
+          cusCode:cusCode.value,
+          factory:factoryEl.value,
+          km:km.value,
+          vehicleNo:vehicleNoEl.value,
+          mooc:mooc.value,
+          driver:driver.value,
+          price:price.value,
+          containerNo:containerNo.value,
+          note:note.value,
+          attachName,
+          attachData
+        });
+      }
+
+    }
+
+    editId=null;
+    saveLocal();
+    render();
+    newForm();
+  }
+
+  if(fileInput.files.length>0){
+    const reader=new FileReader();
+    reader.onload=e=>finish(fileInput.files[0].name,e.target.result);
+    reader.readAsDataURL(fileInput.files[0]);
+  }else{
+    finish();
+  }
+};
+window.downloadFile=function(id){
+  const r=store.find(x=>x.id===id);
+  if(!r || !r.attachData) return alert("Không có file");
+
+  const a=document.createElement("a");
+  a.href=r.attachData;
+  a.download=r.attachName||"file";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
+window.cancelEdit = function(){
+  editId = null;
+  newForm();
+};
+window.edit = function(id){
+  const r = store.find(x=>x.id===id);
+  if(!r) return;
+
+  editId = id;
+
+  planDate.value = r.planDate || "";
+  customer.value = r.customer || "";
+  cusCode.value = r.cusCode || "";
+  factory.value = r.factory || "";
+  km.value = r.km || "";
+  vehicleNo.value = r.vehicleNo || "";
+  mooc.value = r.mooc || "";
+  driver.value = r.driver || "";
+  price.value = r.price || "";
+  containerNo.value = r.containerNo || "";
+  note.value = r.note || "";
+
+  // 🔥 QUAN TRỌNG
+  qty.value = 1; // vì mỗi dòng trong bảng là 1
+
+};
+window.delRow=function(id){
+  if(!confirm("Xác nhận xóa?")) return;
+  store=store.filter(x=>x.id!==id);
+  saveLocal();
+  render();
+};
+
+window.newForm=function(){
+  document.querySelectorAll("input").forEach(i=>{ if(i.type!=="file") i.value=""; });
+  document.querySelectorAll("select").forEach(s=>s.selectedIndex=0);
+  editId=null;
+};
+
+window.exportExcel = function(){
+
+  if(!store || store.length===0){
+    alert("Không có dữ liệu để xuất");
+    return;
+  }
+
+  let csv = [];
+  csv.push([
+    "Ngày",
+    "Khách hàng",
+    "Mã KH",
+    "Kho",
+    "KM",
+    "Xe",
+    "Mooc",
+    "Tài xế",
+    "Giá",
+    "Container",
+    "Ghi chú"
+  ].join(","));
+
+  store.forEach(r=>{
+    csv.push([
+      r.planDate || "",
+      r.customer || "",
+      r.cusCode || "",
+      r.factory || "",
+      r.km || "",
+      r.vehicleNo || "",
+      r.mooc || "",
+      r.driver || "",
+      r.price || "",
+      r.containerNo || "",
+      (r.note || "").replace(/,/g," ")
+    ].join(","));
+  });
+
+  const blob = new Blob(
+    ["\uFEFF" + csv.join("\n")],
+    { type: "text/csv;charset=utf-8;" }
+  );
+
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "Trucking_Plan.csv";
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+};
+
+function render(dataOverride){
+  tbody.innerHTML="";
+  let data = Array.isArray(dataOverride) ? dataOverride : store;
+
+  if(filterArranged.checked && !filterNotArranged.checked)
+    data=data.filter(r=>isArranged(r));
+  else if(!filterArranged.checked && filterNotArranged.checked)
+    data=data.filter(r=>!isArranged(r));
+
+  data.forEach((r,i)=>{
+    tbody.innerHTML+=`
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.planDate||""}</td>
+      <td>${r.customer||""}</td>
+      <td>${r.cusCode||""}</td>
+      <td>${r.factory||""}</td>
+      <td>${r.km||""}</td>
+      <td>${r.vehicleNo||""}</td>
+      <td>${r.mooc||""}</td>
+      <td>${r.driver||""}</td>
+      <td>1</td>
+      <td>${Number(r.price||0).toLocaleString('vi-VN')}</td>
+      <td>${r.containerNo||""}</td>
+      <td>${r.note||""}</td>
+      <td>${r.attachName?`<span class="attach-link" onclick="downloadFile('${r.id}')">📎 ${r.attachName}</span>`:""}</td>
+      <td><button onclick="edit('${r.id}')">✏️</button></td>
+      <td><button onclick="delRow('${r.id}')">🗑️</button></td>
+    </tr>`;
+  });
+
+  totalQty.textContent=data.length;
+}
+window.searchData=function(){
+  const key=searchKeyword.value.toLowerCase().trim();
+  const from=fromDate.value;
+  const to=toDate.value;
+
+  let filtered=store.filter(r=>{
+    let matchKey=!key || Object.values(r).some(v=>String(v).toLowerCase().includes(key));
+    let matchDate=true;
+    if(from) matchDate=r.planDate>=from;
+    if(to) matchDate=matchDate && r.planDate<=to;
+    return matchKey && matchDate;
+  });
+
+  render(filtered);
+};
+
+window.clearSearch=function(){
+  searchKeyword.value="";
+  fromDate.value="";
+  toDate.value="";
+  render();
+};
+
+render();
+});
+</script>
+</body>
+</html>
