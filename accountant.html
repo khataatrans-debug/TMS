@@ -146,7 +146,6 @@ tr:hover td{background:#e8eeff!important;}
       <th class="cost-col">Cầu đường</th>
       <th class="cost-col">Nhiên liệu</th>
       <th class="cost-col">Lương LX</th>
-      <th class="cost-col" style="background:#1a3a2a;white-space:nowrap">Lương (master)</th>
       <th class="cost-col">Sửa chữa</th>
       <th class="cost-col">Phí khác</th>
       <th class="cost-col">Tổng CP</th>
@@ -397,6 +396,14 @@ function render(data){
       ? fmt(c.fuel)
       : (autoNL.hasData ? `<span style="color:#16a34a;font-size:10.5px">~${fmt(autoNL.cost)}</span>` : "");
 
+    // ── Lương chuyến tự động từ master ──
+    const masterWage = getWageFromMaster(r.customer, r.factory);
+    const wageDisplay = (()=>{
+      if(hasCostData && c.wage) return fmt(c.wage);           // đã nhập → hiển thị số đã lưu
+      if(masterWage) return `<span style="color:#7c3aed;font-size:10.5px">~${fmt(masterWage)}</span>`; // chưa nhập → gợi ý từ master
+      return "";
+    })();
+
     const tr=document.createElement("tr");
     tr.innerHTML=`
       <td>${i+1}</td>
@@ -418,18 +425,7 @@ function render(data){
       <td class="num cost-cell" style="color:var(--accent)">${hasCostData?fmt(rev):""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.toll):""}</td>
       <td class="num cost-cell">${fuelDisplay}</td>
-      <td class="num cost-cell">${hasCostData?fmt(c.wage):""}</td>
-      <td class="num cost-cell" style="background:#f0fdf4">${(()=>{
-        const mw=getWageFromMaster(r.customer,r.factory);
-        if(!mw) return '<span style="color:#94a3b8;font-size:10px">—</span>';
-        const diff = hasCostData && c.wage ? c.wage - mw : null;
-        const diffHtml = diff !== null
-          ? (diff===0
-              ? '<span style="color:#16a34a;font-size:10px"> ✓</span>'
-              : `<span style="color:${diff>0?"#e67700":"#1d6ef5"};font-size:10px"> (${diff>0?"+":""}${fmt(diff)})</span>`)
-          : '';
-        return `<span style="color:#16a34a;font-weight:700">${fmt(mw)}</span>${diffHtml}`;
-      })()}</td>
+      <td class="num cost-cell">${wageDisplay}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.repair):""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.other):""}</td>
       <td class="num cost-cell" style="color:var(--red)">${hasCostData?fmt(cost):""}</td>
