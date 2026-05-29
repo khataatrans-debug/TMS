@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🔧 Bảo dưỡng / Vỏ xe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{--navy:#0d2248;--accent:#1d6ef5;--green:#0d9f6e;--amber:#f59e0b;--red:#ef4444;--orange:#ea580c;--border:#e2e8f5;--muted:#64748b;--bg:#eef1f8;--white:#fff;--text:#0f172a;--alt:#f7f9ff;--shadow:0 1px 3px rgba(13,34,72,.08);--r:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+
+/* NAV */
+.nav{background:var(--navy);display:flex;align-items:center;padding:0 18px;height:46px;gap:2px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(13,34,72,.3);}
+.nav a{color:rgba(255,255,255,.6);text-decoration:none;font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:5px;transition:.15s;white-space:nowrap;}
+.nav a:hover{background:rgba(255,255,255,.1);color:#fff;}
+.nav a.active{background:rgba(29,110,245,.5);color:#fff;font-weight:600;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.nav-user{color:rgba(255,255,255,.75);font-size:12px;font-weight:500;}
+.btn-logout{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:4px 11px;font-size:12px;font-family:inherit;cursor:pointer;}
+
+/* SYNC */
+.sync-bar{background:var(--white);border-bottom:1px solid var(--border);padding:6px 18px;display:flex;align-items:center;gap:10px;font-size:12px;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block;}
+.sync-dot.online{background:#22c55e;} .sync-dot.offline{background:#ef4444;} .sync-dot.saving{background:#f59e0b;animation:pulse .6s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* TOOLBAR */
+.toolbar{background:var(--white);border-bottom:1px solid var(--border);padding:8px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.toolbar-title{font-size:13px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px;}
+.toolbar-title::before{content:'';width:3px;height:15px;background:var(--accent);border-radius:2px;display:inline-block;}
+
+/* TABS */
+.tabs-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:0 18px;display:flex;gap:2px;}
+.tab-btn{padding:9px 16px;font-size:12.5px;font-weight:600;font-family:inherit;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:.15s;white-space:nowrap;}
+.tab-btn:hover{color:var(--navy);}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* FILTER BAR */
+.filter-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:8px 18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.filter-wrap input[type="text"],.filter-wrap input[type="date"],.filter-wrap select{height:28px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:5px;padding:0 8px;background:var(--white);color:var(--text);}
+.filter-wrap input[type="text"]{width:220px;}
+.filter-wrap input[type="date"]{width:130px;}
+.filter-wrap select{min-width:110px;}
+.filter-wrap input:focus,.filter-wrap select:focus{outline:none;border-color:var(--accent);}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border:none;border-radius:5px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap;}
+.btn:hover{filter:brightness(1.07);}
+.btn-blue{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
+.btn-gray{background:#f1f5f9;color:#475569;border:1px solid var(--border);}
+.btn-green{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;}
+.btn-red{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;}
+.btn-excel{background:#f1f5f9;color:#475569;border:1px solid var(--border);}
+.btn-sm{padding:3px 9px;font-size:11.5px;}
+.pill{background:var(--alt);color:var(--navy);border:1px solid #c7d4f0;border-radius:20px;padding:3px 14px;font-size:12px;font-weight:600;margin-left:auto;}
+.pill strong{color:var(--accent);}
+
+/* FORM PANEL */
+.form-panel{background:#fafbff;border-bottom:1px solid var(--border);padding:14px 18px;}
+.edit-banner{background:#fffbeb;border:1px dashed var(--amber);border-radius:5px;padding:6px 12px;margin-bottom:10px;font-size:12px;color:#92400e;font-weight:600;display:none;}
+.fg{display:grid;gap:8px;margin-bottom:10px;}
+.field label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px;}
+.field input,.field select,.field textarea{height:30px;font-size:12.5px;font-family:inherit;border:1px solid var(--border);border-radius:5px;padding:0 8px;width:100%;color:var(--text);background:var(--white);}
+.field textarea{height:auto;padding:6px 8px;resize:vertical;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(29,110,245,.1);}
+.field input[readonly]{background:#f8fafc;color:var(--muted);}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;}
+table{border-collapse:collapse;width:100%;font-size:11.5px;}
+thead th{background:var(--navy);color:rgba(255,255,255,.88);padding:7px 7px;font-weight:600;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;position:sticky;top:0;z-index:5;}
+td{border-bottom:1px solid var(--border);padding:5px 7px;text-align:center;vertical-align:middle;white-space:nowrap;}
+td.tl{text-align:left;white-space:normal;max-width:180px;}
+td.num{text-align:right;font-weight:600;}
+tr:last-child td{border-bottom:none;}
+tr:nth-child(even) td{background:var(--alt);}
+tr:hover td{background:#e8eeff!important;}
+.btn-edit{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;}
+.btn-del{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;}
+.badge{display:inline-block;border-radius:20px;padding:1px 9px;font-size:10.5px;font-weight:600;}
+.badge-green{background:#dcfce7;color:#166534;}
+.badge-amber{background:#fef9c3;color:#92400e;}
+.badge-red{background:#fee2e2;color:#b91c1c;}
+.badge-blue{background:#dbeafe;color:#1e40af;}
+
+/* CARD WRAP */
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin:0;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:#22c55e;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
+.toast.show{opacity:1;}
+.toast.error{background:#ef4444;}
+</style>
+</head>
+<body>
+
+<script>
+(function(){
+  const raw=localStorage.getItem("LOGIN_USER");
+  if(!raw){location.href="login.html";return;}
+  const s=JSON.parse(raw);
+  if(s.role!=="admin"&&!(s.pages||[]).includes("maintenance.html"))
+    location.href=(s.pages&&s.pages[0])||"login.html";
+})();
+</script>
+
+<!-- Firebase SDK (module) -->
+<script type="module">
+import { initializeApp }          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+  authDomain:"transportation-6d6f5.firebaseapp.com",
+  databaseURL:"https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"transportation-6d6f5",
+  storageBucket:"transportation-6d6f5.firebasestorage.app",
+  messagingSenderId:"1097685849973",
+  appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
+};
+const app  = initializeApp(firebaseConfig);
+const db   = getDatabase(app);
+const MAINT_REF  = "maintenance_data";
+const MASTER_KEY = "MASTER_ALL_V4";
+
+/* ── CONSTANTS ── */
+const CURRENT_KEY="LOGIN_USER";
+const ALL_NAV=[
+  {page:"index.html",       label:"🚚 Trucking"},
+  {page:"accountant.html",  label:"📒 Accountant"},
+  {page:"performance.html", label:"📈 Performance"},
+  {page:"overview.html",    label:"📊 Overview"},
+  {page:"master.html",      label:"📂 Master",      adminOnly:true},
+  {page:"maintenance.html", label:"🔧 Bảo dưỡng",  adminOnly:true},
+  {page:"users.html",       label:"👑 Users",        adminOnly:true},
+];
+
+/* ── STATE ── */
+let DB    = { repairs:[], tyres:[] };
+let editIdx = { repair:null, tyre:null };
+let masterDB= { trucks:[] };
+let saveTimer=null;
+
+/* ── LOAD MASTER (trucks/moocs) ── */
+function loadMaster(){
+  try{ const r=localStorage.getItem(MASTER_KEY); if(r) masterDB=JSON.parse(r); } catch(e){}
+  masterDB.trucks=masterDB.trucks||[];
+}
+loadMaster();
+// live-sync master khi master.html cập nhật
+onValue(ref(db,"master_data"),(snap)=>{
+  if(snap.exists()){
+    masterDB=snap.val();
+    masterDB.trucks=masterDB.trucks||[];
+    localStorage.setItem(MASTER_KEY,JSON.stringify(masterDB));
+    buildVehicleDropdowns();
+  }
+});
+
+/* ── NAV ── */
+(function buildNav(){
+  const session=JSON.parse(localStorage.getItem(CURRENT_KEY)||"{}");
+  const nav=document.getElementById("mainNav");
+  const nr=nav.querySelector(".nav-right");
+  ALL_NAV.forEach(item=>{
+    if(item.adminOnly&&session.role!=="admin") return;
+    if(!item.adminOnly&&session.role!=="admin"&&!(session.pages||[]).includes(item.page)) return;
+    const a=document.createElement("a");a.href=item.page;a.textContent=item.label;
+    if(location.pathname.endsWith(item.page)) a.classList.add("active");
+    nav.insertBefore(a,nr);
+  });
+  document.getElementById("userInfo").textContent=session.username?`👤 ${session.username}`:"";
+  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);location.href="login.html";};
+})();
+
+/* ── TOAST ── */
+function showToast(msg,isError=false){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.className="toast show"+(isError?" error":"");
+  clearTimeout(t._t);t._t=setTimeout(()=>{t.className="toast";},2800);
+}
+
+/* ── SYNC STATUS ── */
+function setSyncStatus(state,msg){
+  document.getElementById("syncDot").className="sync-dot "+state;
+  document.getElementById("syncStatus").textContent=msg;
+}
+function setLastSync(){document.getElementById("lastSync").textContent="Cập nhật lúc "+new Date().toLocaleTimeString("vi-VN");}
+
+/* ── FIREBASE ── */
+setSyncStatus("","Đang kết nối...");
+onValue(ref(db,MAINT_REF),(snap)=>{
+  if(snap.exists()){
+    DB=snap.val();
+    DB.repairs=DB.repairs||[];
+    DB.tyres  =DB.tyres  ||[];
+    localStorage.setItem("MAINT_DATA",JSON.stringify(DB));
+  } else {
+    const local=localStorage.getItem("MAINT_DATA");
+    if(local){DB=JSON.parse(local);pushDB();}
+  }
+  setSyncStatus("online","🟢 Đã kết nối — data đồng bộ real-time");
+  setLastSync();
+  renderRepair();renderTyre();
+},(err)=>{
+  setSyncStatus("offline","🔴 Mất kết nối — dùng data cục bộ");
+  const local=localStorage.getItem("MAINT_DATA");
+  if(local){DB=JSON.parse(local);renderRepair();renderTyre();}
+  showToast("⚠️ Không kết nối Firebase",true);
+});
+
+function saveDB(){
+  localStorage.setItem("MAINT_DATA",JSON.stringify(DB));
+  setSyncStatus("saving","💾 Đang lưu...");
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>pushDB(),300);
+}
+async function pushDB(){
+  try{
+    await set(ref(db,MAINT_REF),DB);
+    setSyncStatus("online","🟢 Đã lưu lên cloud");setLastSync();
+  }catch(e){
+    setSyncStatus("offline","🔴 Lỗi lưu");
+    showToast("Lỗi: "+e.message,true);
+  }
+}
+
+const tv=v=>(v||"").trim();
+const fmt=n=>Number(n||0).toLocaleString("vi-VN");
+
+/* ══════════════════════════════════════════
+   VEHICLE DROPDOWNS (from master trucks)
+══════════════════════════════════════════ */
+function getAllVehicles(){
+  const list=[];
+  (masterDB.trucks||[]).forEach(t=>{
+    if(t.truck) list.push({type:"xe",  label:"🚛 "+t.truck,  val:t.truck});
+    if(t.mooc)  list.push({type:"mooc",label:"🚌 "+t.mooc,   val:t.mooc});
+    if(t.mooc2) list.push({type:"mooc",label:"🚌 "+t.mooc2,  val:t.mooc2});
+    if(t.mooc3) list.push({type:"mooc",label:"🚌 "+t.mooc3,  val:t.mooc3});
+    if(t.mooc4) list.push({type:"mooc",label:"🚌 "+t.mooc4,  val:t.mooc4});
+  });
+  return list;
+}
+function getAllMoocs(){
+  const list=[];
+  (masterDB.trucks||[]).forEach(t=>{
+    ["mooc","mooc2","mooc3","mooc4"].forEach(k=>{if(t[k]) list.push(t[k]);});
+  });
+  return [...new Set(list)];
+}
+function getAllTrucks(){
+  return [...new Set((masterDB.trucks||[]).map(t=>t.truck).filter(Boolean))];
+}
+
+function buildVehicleDropdowns(){
+  const vehicles=getAllVehicles();
+  const trucks=getAllTrucks();
+  const moocs=getAllMoocs();
+
+  // Repair dropdown
+  const rSel=document.getElementById("rVehicle");
+  const rVal=rSel.value;
+  rSel.innerHTML='<option value="">— Chọn xe/mooc —</option>';
+  vehicles.forEach(v=>{ const o=document.createElement("option");o.value=v.val;o.textContent=v.label;rSel.appendChild(o); });
+  rSel.value=rVal;
+
+  // Tyre truck dropdown
+  const tSel=document.getElementById("tTruck");
+  const tVal=tSel.value;
+  tSel.innerHTML='<option value="">— Chọn xe —</option>';
+  trucks.forEach(v=>{ const o=document.createElement("option");o.value=v;o.textContent="🚛 "+v;tSel.appendChild(o); });
+  tSel.value=tVal;
+
+  // Tyre mooc dropdown
+  const mSel=document.getElementById("tMooc");
+  const mVal=mSel.value;
+  mSel.innerHTML='<option value="">— Chọn mooc —</option>';
+  moocs.forEach(v=>{ const o=document.createElement("option");o.value=v;o.textContent="🚌 "+v;mSel.appendChild(o); });
+  mSel.value=mVal;
+
+  // Filter dropdowns
+  ["fRepairVehicle","fTyreTruck","fTyreMooc"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    const cur=el.value;
+    el.innerHTML='<option value="">Tất cả xe/mooc</option>';
+    if(id==="fTyreTruck"){
+      trucks.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent="🚛 "+v;el.appendChild(o);});
+    } else if(id==="fTyreMooc"){
+      moocs.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent="🚌 "+v;el.appendChild(o);});
+    } else {
+      vehicles.forEach(v=>{const o=document.createElement("option");o.value=v.val;o.textContent=v.label;el.appendChild(o);});
+    }
+    el.value=cur;
+  });
+}
+buildVehicleDropdowns();
+
+/* ══════════════════════════════════════════
+   TAB SWITCH
+══════════════════════════════════════════ */
+window.openTab=function(id,el){
+  document.querySelectorAll(".tab-content").forEach(p=>p.style.display="none");
+  document.getElementById("tab-"+id).style.display="block";
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  el.classList.add("active");
+};
+
+/* ══════════════════════════════════════════
+   TAB 1: BẢO DƯỠNG / SỬA CHỮA
+══════════════════════════════════════════ */
+function calcRepairTotal(){
+  const qty  =+document.getElementById("rQty").value||0;
+  const price=+document.getElementById("rUnitPrice").value||0;
+  document.getElementById("rTotal").value=qty&&price?(qty*price):0;
+}
+window.calcRepairTotal=calcRepairTotal;
+
+window.addRepair=function(){
+  const date=tv(document.getElementById("rDate").value);
+  const veh =tv(document.getElementById("rVehicle").value);
+  if(!date||!veh) return showToast("Nhập đủ: Ngày & Số xe/mooc!",true);
+  const o={
+    date,
+    vehicle:   veh,
+    desc:      tv(document.getElementById("rDesc").value),
+    norm:      tv(document.getElementById("rNorm").value),
+    isNew:     tv(document.getElementById("rIsNew").value),
+    repair:    tv(document.getElementById("rRepairType").value),
+    repairCode:tv(document.getElementById("rRepairCode").value),
+    warranty:  tv(document.getElementById("rWarranty").value),
+    unit:      tv(document.getElementById("rUnit").value),
+    qty:       +document.getElementById("rQty").value||0,
+    unitPrice: +document.getElementById("rUnitPrice").value||0,
+    total:     +document.getElementById("rTotal").value||0,
+    proposer:  tv(document.getElementById("rProposer").value),
+    approver:  tv(document.getElementById("rApprover").value),
+  };
+  if(editIdx.repair!==null){
+    DB.repairs[editIdx.repair]=o;editIdx.repair=null;
+  } else { DB.repairs.push(o); }
+  saveDB();cancelRepair();renderRepair();
+  showToast("✅ Đã lưu phiếu bảo dưỡng");
+};
+
+window.editRepair=function(i){
+  const r=DB.repairs[i];editIdx.repair=i;
+  document.getElementById("rDate").value      =r.date||"";
+  document.getElementById("rVehicle").value   =r.vehicle||"";
+  document.getElementById("rDesc").value      =r.desc||"";
+  document.getElementById("rNorm").value      =r.norm||"";
+  document.getElementById("rIsNew").value     =r.isNew||"";
+  document.getElementById("rRepairType").value=r.repair||"";
+  document.getElementById("rRepairCode").value=r.repairCode||"";
+  document.getElementById("rWarranty").value  =r.warranty||"";
+  document.getElementById("rUnit").value      =r.unit||"";
+  document.getElementById("rQty").value       =r.qty||"";
+  document.getElementById("rUnitPrice").value =r.unitPrice||"";
+  document.getElementById("rTotal").value     =r.total||"";
+  document.getElementById("rProposer").value  =r.proposer||"";
+  document.getElementById("rApprover").value  =r.approver||"";
+  document.getElementById("rEditBanner").style.display="block";
+  document.getElementById("rDate").focus();
+};
+
+window.deleteRepair=function(i){
+  if(!confirm(`Xóa phiếu ngày ${DB.repairs[i].date} — xe ${DB.repairs[i].vehicle}?`)) return;
+  DB.repairs.splice(i,1);saveDB();renderRepair();
+  showToast("🗑️ Đã xóa");
+};
+
+window.cancelRepair=function(){
+  editIdx.repair=null;
+  ["rDate","rDesc","rNorm","rIsNew","rRepairType","rRepairCode","rWarranty","rUnit","rQty","rUnitPrice","rTotal","rProposer","rApprover"].forEach(id=>{ document.getElementById(id).value=""; });
+  document.getElementById("rVehicle").value="";
+  document.getElementById("rEditBanner").style.display="none";
+};
+
+function renderRepair(){
+  const kw=(document.getElementById("fRepairKw").value||"").toLowerCase();
+  const from=document.getElementById("fRepairFrom").value;
+  const to  =document.getElementById("fRepairTo").value;
+  const veh =document.getElementById("fRepairVehicle").value;
+
+  let rows=[...DB.repairs];
+  if(kw)   rows=rows.filter(r=>[r.vehicle,r.desc,r.repair,r.repairCode,r.proposer,r.approver].join(" ").toLowerCase().includes(kw));
+  if(from) rows=rows.filter(r=>r.date>=from);
+  if(to)   rows=rows.filter(r=>r.date<=to);
+  if(veh)  rows=rows.filter(r=>r.vehicle===veh);
+
+  // Sort date desc
+  rows.sort((a,b)=>b.date.localeCompare(a.date));
+  const idxMap=rows.map(r=>DB.repairs.indexOf(r));
+
+  const tbody=document.getElementById("repairBody");
+  tbody.innerHTML="";
+  let sumTotal=0;
+  rows.forEach((r,i)=>{
+    sumTotal+=+r.total||0;
+    const isNew=r.isNew==="Thay mới"
+      ? `<span class="badge badge-green">Thay mới</span>`
+      : r.isNew==="Sửa chữa"
+      ? `<span class="badge badge-amber">Sửa chữa</span>`
+      : r.isNew||"";
+    tbody.innerHTML+=`<tr>
+      <td>${i+1}</td>
+      <td>${r.date}</td>
+      <td class="tl" style="max-width:130px">${r.desc||""}</td>
+      <td>${r.norm||""}</td>
+      <td>${isNew}</td>
+      <td>${r.repair||""}</td>
+      <td style="font-family:monospace">${r.repairCode||""}</td>
+      <td>${r.warranty||""}</td>
+      <td>${r.unit||""}</td>
+      <td class="num">${r.qty||""}</td>
+      <td class="num">${r.unitPrice?fmt(r.unitPrice):""}</td>
+      <td class="num" style="font-weight:700;color:var(--orange)">${r.total?fmt(r.total):""}</td>
+      <td class="tl">${r.proposer||""}</td>
+      <td class="tl">${r.approver||""}</td>
+      <td style="font-weight:700">${r.vehicle||""}</td>
+      <td><button class="btn-edit" onclick="editRepair(${idxMap[i]})">✏️ Sửa</button></td>
+      <td><button class="btn-del"  onclick="deleteRepair(${idxMap[i]})">🗑️ Xóa</button></td>
+    </tr>`;
+  });
+  document.getElementById("repairTotal").textContent=fmt(sumTotal);
+  document.getElementById("repairCount").textContent=rows.length;
+}
+
+window.doRepairSearch=function(){renderRepair();};
+window.clearRepairSearch=function(){
+  ["fRepairKw","fRepairFrom","fRepairTo"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("fRepairVehicle").value="";
+  renderRepair();
+};
+
+window.exportRepair=function(){
+  const hdr=["Ngày","Diễn giải","Định mức BD","Thay mới/Sửa","Mã SC","Loại SC","Bảo hành","ĐVT","SL","Đơn giá","Thành tiền","Người đề xuất","Người duyệt","Số xe"];
+  const rows=DB.repairs.map(r=>[r.date,r.desc,r.norm,r.isNew,r.repairCode,r.repair,r.warranty,r.unit,r.qty,r.unitPrice,r.total,r.proposer,r.approver,r.vehicle]);
+  const csv=[hdr,...rows].map(r=>r.map(c=>'"'+(c||"")+'"').join(",")).join("\n");
+  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="BaoDuong.csv";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  showToast("✅ Xuất Excel bảo dưỡng");
+};
+
+/* ══════════════════════════════════════════
+   TAB 2: QUẢN LÝ VỎ XE
+══════════════════════════════════════════ */
+function calcTyreUsed(){
+  const kmAt  =+document.getElementById("tKmAt").value||0;
+  const kmStd =+document.getElementById("tKmStd").value||0;
+  // Km đã sử dụng = km định mức - (km định mức - km lúc thay) — tức là km lúc thay nếu từ 0
+  // Ta không biết km trước nên để người dùng nhập; chỉ tính km còn lại
+  // km còn lại = định mức - đã dùng
+  const used =+document.getElementById("tKmUsed").value||0;
+  const remain=kmStd>0&&used>0?Math.max(0,kmStd-used):"";
+  document.getElementById("tKmRemain").value=remain;
+}
+window.calcTyreUsed=calcTyreUsed;
+
+window.addTyre=function(){
+  const date=tv(document.getElementById("tDate").value);
+  const truck=tv(document.getElementById("tTruck").value);
+  if(!date||!truck) return showToast("Nhập đủ: Ngày & Số xe!",true);
+  const o={
+    date,
+    truck:  truck,
+    mooc:   tv(document.getElementById("tMooc").value),
+    serial: tv(document.getElementById("tSerial").value),
+    kmAt:   +document.getElementById("tKmAt").value||0,
+    kmUsed: +document.getElementById("tKmUsed").value||0,
+    kmStd:  +document.getElementById("tKmStd").value||0,
+    kmRemain:+document.getElementById("tKmRemain").value||0,
+    pos:    tv(document.getElementById("tPos").value),
+    desc:   tv(document.getElementById("tDesc").value),
+  };
+  if(editIdx.tyre!==null){
+    DB.tyres[editIdx.tyre]=o;editIdx.tyre=null;
+  } else { DB.tyres.push(o); }
+  saveDB();cancelTyre();renderTyre();
+  showToast("✅ Đã lưu thông tin vỏ xe");
+};
+
+window.editTyre=function(i){
+  const r=DB.tyres[i];editIdx.tyre=i;
+  document.getElementById("tDate").value   =r.date||"";
+  document.getElementById("tTruck").value  =r.truck||"";
+  document.getElementById("tMooc").value   =r.mooc||"";
+  document.getElementById("tSerial").value =r.serial||"";
+  document.getElementById("tKmAt").value   =r.kmAt||"";
+  document.getElementById("tKmUsed").value =r.kmUsed||"";
+  document.getElementById("tKmStd").value  =r.kmStd||"";
+  document.getElementById("tKmRemain").value=r.kmRemain||"";
+  document.getElementById("tPos").value    =r.pos||"";
+  document.getElementById("tDesc").value   =r.desc||"";
+  document.getElementById("tEditBanner").style.display="block";
+  document.getElementById("tDate").focus();
+};
+
+window.deleteTyre=function(i){
+  if(!confirm(`Xóa vỏ xe ngày ${DB.tyres[i].date}?`)) return;
+  DB.tyres.splice(i,1);saveDB();renderTyre();
+  showToast("🗑️ Đã xóa");
+};
+
+window.cancelTyre=function(){
+  editIdx.tyre=null;
+  ["tDate","tSerial","tKmAt","tKmUsed","tKmStd","tKmRemain","tPos","tDesc"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("tTruck").value="";
+  document.getElementById("tMooc").value="";
+  document.getElementById("tEditBanner").style.display="none";
+};
+
+function renderTyre(){
+  const kw  =(document.getElementById("fTyreKw").value||"").toLowerCase();
+  const from =document.getElementById("fTyreFrom").value;
+  const to   =document.getElementById("fTyreTo").value;
+  const truck=document.getElementById("fTyreTruck").value;
+  const mooc =document.getElementById("fTyreMooc").value;
+
+  let rows=[...DB.tyres];
+  if(kw)   rows=rows.filter(r=>[r.truck,r.mooc,r.serial,r.pos,r.desc].join(" ").toLowerCase().includes(kw));
+  if(from) rows=rows.filter(r=>r.date>=from);
+  if(to)   rows=rows.filter(r=>r.date<=to);
+  if(truck) rows=rows.filter(r=>r.truck===truck);
+  if(mooc)  rows=rows.filter(r=>r.mooc===mooc);
+
+  rows.sort((a,b)=>b.date.localeCompare(a.date));
+  const idxMap=rows.map(r=>DB.tyres.indexOf(r));
+
+  const tbody=document.getElementById("tyreBody");
+  tbody.innerHTML="";
+  rows.forEach((r,i)=>{
+    const pct=r.kmStd>0?Math.round(((r.kmStd-r.kmRemain)/r.kmStd)*100):0;
+    const statusCls=pct>=90?"badge-red":pct>=70?"badge-amber":"badge-green";
+    tbody.innerHTML+=`<tr>
+      <td>${i+1}</td>
+      <td>${r.date}</td>
+      <td style="font-weight:700">${r.truck||""}</td>
+      <td>${r.mooc||""}</td>
+      <td style="font-family:monospace">${r.serial||""}</td>
+      <td class="num">${r.kmAt?fmt(r.kmAt):""}</td>
+      <td class="num">${r.kmUsed?fmt(r.kmUsed):""}</td>
+      <td class="num">${r.kmStd?fmt(r.kmStd):""}</td>
+      <td class="num" style="color:${(r.kmRemain>0&&r.kmRemain<5000)?'var(--red)':'var(--green)'};font-weight:700">${r.kmRemain?fmt(r.kmRemain):""}</td>
+      <td>${r.pos?`<span class="badge badge-blue">${r.pos}</span>`:""}</td>
+      <td class="tl">${r.desc||""}</td>
+      <td><button class="btn-edit" onclick="editTyre(${idxMap[i]})">✏️ Sửa</button></td>
+      <td><button class="btn-del"  onclick="deleteTyre(${idxMap[i]})">🗑️ Xóa</button></td>
+    </tr>`;
+  });
+  document.getElementById("tyreCount").textContent=rows.length;
+}
+
+window.doTyreSearch =function(){renderTyre();};
+window.clearTyreSearch=function(){
+  ["fTyreKw","fTyreFrom","fTyreTo"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("fTyreTruck").value="";
+  document.getElementById("fTyreMooc").value="";
+  renderTyre();
+};
+
+window.exportTyre=function(){
+  const hdr=["Ngày","Số xe","Mooc","Số Seri","KM lúc thay","KM đã dùng","KM định mức","KM còn lại","Vị trí","Diễn giải"];
+  const rows=DB.tyres.map(r=>[r.date,r.truck,r.mooc,r.serial,r.kmAt,r.kmUsed,r.kmStd,r.kmRemain,r.pos,r.desc]);
+  const csv=[hdr,...rows].map(r=>r.map(c=>'"'+(c||"")+'"').join(",")).join("\n");
+  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="VoXe.csv";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  showToast("✅ Xuất Excel vỏ xe");
+};
+
+</script>
+
+<!-- ══ HTML ══ -->
+<nav class="nav" id="mainNav">
+  <div class="nav-right">
+    <span class="nav-user" id="userInfo"></span>
+    <button class="btn-logout" id="btnLogout">↩ Đăng xuất</button>
+  </div>
+</nav>
+
+<div class="sync-bar">
+  <span class="sync-dot" id="syncDot"></span>
+  <span id="syncStatus">Đang kết nối...</span>
+  <span style="margin-left:auto;color:var(--muted)" id="lastSync"></span>
+</div>
+
+<div class="toolbar">
+  <div class="toolbar-title">🔧 BẢO DƯỠNG / SỬA CHỮA & VỎ XE</div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-wrap">
+  <button class="tab-btn active" onclick="openTab('repair',this)">🔧 Bảo dưỡng / Sửa chữa</button>
+  <button class="tab-btn"        onclick="openTab('tyre',this)">🔴 Quản lý vỏ xe</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 1: BẢO DƯỠNG / SỬA CHỮA
+════════════════════════════════════════ -->
+<div id="tab-repair" class="tab-content">
+
+  <!-- FORM -->
+  <div class="form-panel">
+    <div class="edit-banner" id="rEditBanner">✏️ Đang sửa — nhấn Lưu để cập nhật hoặc Hủy</div>
+
+    <!-- Row 1: Ngày + Xe + Diễn giải -->
+    <div class="fg" style="grid-template-columns:130px 1fr 2fr;margin-bottom:8px">
+      <div class="field"><label>Ngày</label><input id="rDate" type="date"></div>
+      <div class="field"><label>Số xe / Mooc</label>
+        <select id="rVehicle"><option value="">— Chọn xe/mooc —</option></select>
+      </div>
+      <div class="field"><label>Diễn giải</label><input id="rDesc" placeholder="Mô tả hạng mục bảo dưỡng/sửa chữa"></div>
+    </div>
+
+    <!-- Row 2: chi tiết -->
+    <div class="fg" style="grid-template-columns:repeat(7,1fr);margin-bottom:8px">
+      <div class="field"><label>Định mức bảo dưỡng</label><input id="rNorm" placeholder="Vd: 10.000km"></div>
+      <div class="field"><label>Thay mới / Sửa</label>
+        <select id="rIsNew">
+          <option value="">— Chọn —</option>
+          <option>Thay mới</option>
+          <option>Sửa chữa</option>
+        </select>
+      </div>
+      <div class="field"><label>Loại sửa chữa</label><input id="rRepairType" placeholder="Vd: Thay lốp, Dầu..."></div>
+      <div class="field"><label>Mã sửa chữa</label><input id="rRepairCode" placeholder="Vd: SC-001"></div>
+      <div class="field"><label>Thời gian bảo hành</label><input id="rWarranty" placeholder="Vd: 6 tháng"></div>
+      <div class="field"><label>Đơn vị tính</label><input id="rUnit" placeholder="Vd: Cái, Lít, Bộ"></div>
+      <div class="field"><label>Số lượng</label><input id="rQty" type="number" placeholder="0" oninput="calcRepairTotal()"></div>
+    </div>
+
+    <!-- Row 3: giá + người -->
+    <div class="fg" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr;margin-bottom:8px">
+      <div class="field"><label>Đơn giá (VNĐ)</label><input id="rUnitPrice" type="number" placeholder="0" oninput="calcRepairTotal()"></div>
+      <div class="field"><label>Thành tiền (VNĐ)</label><input id="rTotal" type="number" readonly style="background:#f0fdf4;font-weight:700;color:var(--green)"></div>
+      <div class="field"><label>Người đề xuất</label><input id="rProposer" placeholder="Họ tên"></div>
+      <div class="field"><label>Người duyệt</label><input id="rApprover" placeholder="Họ tên"></div>
+      <div class="field" style="align-self:end">
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-green" onclick="addRepair()">💾 Thêm / Lưu</button>
+          <button class="btn btn-gray"  onclick="cancelRepair()">✕ Hủy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTER -->
+  <div class="filter-wrap">
+    <input type="text" id="fRepairKw" placeholder="🔍 Tìm xe, diễn giải, mã SC...">
+    <input type="date" id="fRepairFrom">
+    <span style="color:var(--muted);font-size:11px">→</span>
+    <input type="date" id="fRepairTo">
+    <select id="fRepairVehicle"><option value="">Tất cả xe/mooc</option></select>
+    <button class="btn btn-blue btn-sm" onclick="doRepairSearch()">Lọc</button>
+    <button class="btn btn-gray btn-sm" onclick="clearRepairSearch()">Reset</button>
+    <button class="btn btn-excel btn-sm" onclick="exportRepair()">↓ Excel</button>
+    <div class="pill">Tổng: <strong id="repairCount">0</strong> phiếu &nbsp;|&nbsp; Chi phí: <strong id="repairTotal" style="color:var(--orange)">0</strong> đ</div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="card" style="margin:8px 0 0">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th>
+          <th>Ngày</th>
+          <th>Diễn giải</th>
+          <th>Định mức BD</th>
+          <th>Thay mới/Sửa</th>
+          <th>Loại SC</th>
+          <th>Mã SC</th>
+          <th>Bảo hành</th>
+          <th>ĐVT</th>
+          <th>SL</th>
+          <th>Đơn giá</th>
+          <th>Thành tiền</th>
+          <th>Người đề xuất</th>
+          <th>Người duyệt</th>
+          <th>Số xe / Mooc</th>
+          <th>Sửa</th><th>Xóa</th>
+        </tr></thead>
+        <tbody id="repairBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     TAB 2: QUẢN LÝ VỎ XE
+════════════════════════════════════════ -->
+<div id="tab-tyre" class="tab-content" style="display:none">
+
+  <!-- FORM -->
+  <div class="form-panel">
+    <div class="edit-banner" id="tEditBanner">✏️ Đang sửa — nhấn Lưu để cập nhật hoặc Hủy</div>
+
+    <!-- Row 1 -->
+    <div class="fg" style="grid-template-columns:130px 1fr 1fr 1fr 1fr;margin-bottom:8px">
+      <div class="field"><label>Ngày</label><input id="tDate" type="date"></div>
+      <div class="field"><label>Số xe</label>
+        <select id="tTruck"><option value="">— Chọn xe —</option></select>
+      </div>
+      <div class="field"><label>Mooc</label>
+        <select id="tMooc"><option value="">— Chọn mooc —</option></select>
+      </div>
+      <div class="field"><label>Số Seri vỏ</label><input id="tSerial" placeholder="Số seri lốp xe"></div>
+      <div class="field"><label>Vị trí vỏ xe</label><input id="tPos" placeholder="Vd: Trước trái, Sau phải..."></div>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="fg" style="grid-template-columns:1fr 1fr 1fr 1fr 2fr 1fr;margin-bottom:8px">
+      <div class="field"><label>KM lúc thay</label><input id="tKmAt" type="number" placeholder="0"></div>
+      <div class="field"><label>KM đã sử dụng</label><input id="tKmUsed" type="number" placeholder="0" oninput="calcTyreUsed()"></div>
+      <div class="field"><label>KM định mức thay</label><input id="tKmStd" type="number" placeholder="Vd: 80000" oninput="calcTyreUsed()"></div>
+      <div class="field"><label>KM còn lại</label><input id="tKmRemain" type="number" readonly style="background:#f0fdf4;font-weight:700;color:var(--green)"></div>
+      <div class="field"><label>Diễn giải</label><input id="tDesc" placeholder="Ghi chú thêm về tình trạng vỏ..."></div>
+      <div class="field" style="align-self:end">
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-green" onclick="addTyre()">💾 Thêm / Lưu</button>
+          <button class="btn btn-gray"  onclick="cancelTyre()">✕ Hủy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTER -->
+  <div class="filter-wrap">
+    <input type="text" id="fTyreKw" placeholder="🔍 Tìm seri, vị trí, diễn giải...">
+    <input type="date" id="fTyreFrom">
+    <span style="color:var(--muted);font-size:11px">→</span>
+    <input type="date" id="fTyreTo">
+    <select id="fTyreTruck"><option value="">Tất cả xe</option></select>
+    <select id="fTyreMooc"><option value="">Tất cả mooc</option></select>
+    <button class="btn btn-blue btn-sm" onclick="doTyreSearch()">Lọc</button>
+    <button class="btn btn-gray btn-sm" onclick="clearTyreSearch()">Reset</button>
+    <button class="btn btn-excel btn-sm" onclick="exportTyre()">↓ Excel</button>
+    <div class="pill">Tổng: <strong id="tyreCount">0</strong> bộ vỏ</div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="card" style="margin:8px 0 0">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th>
+          <th>Ngày</th>
+          <th>Số xe</th>
+          <th>Mooc</th>
+          <th>Số Seri</th>
+          <th>KM lúc thay</th>
+          <th>KM đã dùng</th>
+          <th>KM định mức</th>
+          <th>KM còn lại</th>
+          <th>Vị trí vỏ</th>
+          <th>Diễn giải</th>
+          <th>Sửa</th><th>Xóa</th>
+        </tr></thead>
+        <tbody id="tyreBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</body>
+</html>

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>📈 Performance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{--navy:#0d2248;--accent:#1d6ef5;--green:#0d9f6e;--red:#e03131;--amber:#e67700;--border:#e2e8f5;--muted:#64748b;--bg:#eef1f8;--white:#ffffff;--text:#0f172a;--alt:#f7f9ff;--shadow:0 1px 3px rgba(13,34,72,.08);--r:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+.nav{background:var(--navy);display:flex;align-items:center;padding:0 18px;height:46px;gap:2px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(13,34,72,.3);}
+.nav a{color:rgba(255,255,255,.6);text-decoration:none;font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:5px;transition:.15s;white-space:nowrap;}
+.nav a:hover{background:rgba(255,255,255,.1);color:#fff;}
+.nav a.active{background:rgba(29,110,245,.5);color:#fff;font-weight:600;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.nav-user{color:rgba(255,255,255,.75);font-size:12px;font-weight:500;}
+.btn-logout{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:4px 11px;font-size:12px;font-family:inherit;cursor:pointer;}
+.toolbar{background:var(--white);border-bottom:1px solid var(--border);padding:8px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.toolbar-title{font-size:13px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px;}
+.toolbar-title::before{content:'';width:3px;height:15px;background:var(--accent);border-radius:2px;display:inline-block;}
+/* FILTER */
+.filter-bar{background:var(--white);border-bottom:1px solid var(--border);padding:8px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.filter-bar label{font-size:12px;font-weight:600;color:var(--muted);}
+.filter-bar select,.filter-bar input{height:30px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:5px;padding:0 8px;background:var(--white);}
+.filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:var(--accent);}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border:none;border-radius:5px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer;transition:.15s;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-gray{background:#f1f5f9;color:#475569;border:1px solid var(--border);}
+/* SUMMARY CARDS */
+.sum-row{display:flex;gap:12px;padding:16px 18px 0;flex-wrap:wrap;}
+.sum-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 18px;flex:1;min-width:160px;box-shadow:var(--shadow);}
+.sum-card .lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.sum-card .val{font-size:22px;font-weight:700;margin-top:3px;}
+/* TABS */
+.tabs-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:0 18px;display:flex;gap:2px;margin-top:12px;}
+.tab-btn{padding:9px 16px;font-size:12.5px;font-weight:600;font-family:inherit;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:.15s;}
+.tab-btn:hover{color:var(--navy);}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+/* TABLE */
+.tbl-wrap{margin:12px 18px 24px;background:var(--white);border-radius:var(--r);border:1px solid var(--border);overflow:auto;box-shadow:var(--shadow);}
+table{border-collapse:collapse;width:100%;font-size:12.5px;}
+thead th{background:var(--navy);color:rgba(255,255,255,.88);padding:8px 10px;font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;position:sticky;top:0;z-index:5;}
+td{border-bottom:1px solid var(--border);padding:7px 10px;text-align:center;}
+td.tl{text-align:left;}
+td.num{text-align:right;font-weight:600;}
+tr:last-child td{border-bottom:none;}
+tr:nth-child(even) td{background:var(--alt);}
+tr:hover td{background:#e8eeff!important;}
+.bar-wrap{background:#e2e8f5;border-radius:20px;height:8px;width:120px;display:inline-block;vertical-align:middle;}
+.bar-fill{height:100%;border-radius:20px;background:var(--accent);}
+.bar-fill.green{background:var(--green);}
+.bar-fill.red{background:var(--red);}
+.badge-pos{background:#dcfce7;color:#166534;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;}
+.badge-neg{background:#fee2e2;color:#991b1b;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;}
+.loading{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<script>
+(function(){
+  const raw=localStorage.getItem("LOGIN_USER");
+  if(!raw){location.href="login.html";return;}
+  const s=JSON.parse(raw);
+  if(s.role!=="admin"&&!(s.pages||[]).includes("performance.html"))
+    location.href=(s.pages&&s.pages[0])||"login.html";
+})();
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<nav class="nav" id="mainNav">
+  <div class="nav-right">
+    <span class="nav-user" id="userInfo"></span>
+    <button class="btn-logout" id="btnLogout">↩ Đăng xuất</button>
+  </div>
+</nav>
+
+<div class="toolbar">
+  <div class="toolbar-title">📈 HIỆU SUẤT VẬN HÀNH</div>
+</div>
+
+<!-- FILTER -->
+<div class="filter-bar">
+  <label>Tháng:</label>
+  <select id="selMonth">
+    <option value="">-- Tất cả --</option>
+    <option value="01">Tháng 1</option><option value="02">Tháng 2</option>
+    <option value="03">Tháng 3</option><option value="04">Tháng 4</option>
+    <option value="05">Tháng 5</option><option value="06">Tháng 6</option>
+    <option value="07">Tháng 7</option><option value="08">Tháng 8</option>
+    <option value="09">Tháng 9</option><option value="10">Tháng 10</option>
+    <option value="11">Tháng 11</option><option value="12">Tháng 12</option>
+  </select>
+  <label>Năm:</label>
+  <select id="selYear"></select>
+  <label>Từ ngày:</label>
+  <input type="date" id="fromDate">
+  <label>Đến ngày:</label>
+  <input type="date" id="toDate">
+  <button class="btn btn-accent" onclick="applyFilter()">Lọc</button>
+  <button class="btn btn-gray" onclick="clearFilter()">Reset</button>
+  <span id="filterInfo" style="font-size:11px;color:var(--muted);margin-left:8px"></span>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="sum-row">
+  <div class="sum-card"><div class="lbl">Tổng doanh thu</div><div class="val" id="totalRev" style="color:var(--accent)">—</div></div>
+  <div class="sum-card"><div class="lbl">Tổng chi phí</div><div class="val" id="totalCost" style="color:var(--red)">—</div></div>
+  <div class="sum-card"><div class="lbl">Lợi nhuận</div><div class="val" id="totalProfit" style="color:var(--green)">—</div></div>
+  <div class="sum-card"><div class="lbl">Tổng chuyến</div><div class="val" id="totalTrips" style="color:var(--navy)">—</div></div>
+  <div class="sum-card"><div class="lbl">Tổng KM</div><div class="val" id="totalKm" style="color:var(--amber)">—</div></div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-wrap">
+  <button class="tab-btn active" onclick="openTab('xe',this)">🚛 Theo xe</button>
+  <button class="tab-btn" onclick="openTab('khach',this)">👤 Theo khách hàng</button>
+  <button class="tab-btn" onclick="openTab('thang',this)">📅 Theo tháng</button>
+  <button class="tab-btn" onclick="openTab('hieusuat',this)">⚡ Hiệu suất</button>
+</div>
+
+<!-- TAB XE -->
+<div id="tab-xe">
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Số xe</th><th>Lái xe</th><th>Số chuyến</th><th>Tổng KM</th>
+        <th>Doanh thu</th><th>Chi phí</th><th>Lợi nhuận</th><th>Tỷ lệ LN</th><th>Hiệu suất</th>
+      </tr></thead>
+      <tbody id="tbody-xe"><tr><td colspan="10" class="loading">⏳ Đang tải...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB KHÁCH -->
+<div id="tab-khach" style="display:none">
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Khách hàng</th><th>Mã KH</th><th>Số chuyến</th><th>Tổng KM</th>
+        <th>Doanh thu</th><th>Chi phí</th><th>Lợi nhuận</th><th>Tỷ lệ LN</th><th>Hiệu suất</th>
+      </tr></thead>
+      <tbody id="tbody-khach"><tr><td colspan="10" class="loading">⏳ Đang tải...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB HIỆU SUẤT -->
+<div id="tab-hieusuat" style="display:none">
+  <div style="display:flex;gap:10px;padding:14px 18px 0;flex-wrap:wrap;">
+    <div class="sum-card" style="flex:1;min-width:160px"><div class="lbl">Doanh thu / chuyến</div><div class="val" id="hs-revPerTrip" style="color:var(--accent);font-size:18px">—</div></div>
+    <div class="sum-card" style="flex:1;min-width:160px"><div class="lbl">Lợi nhuận / chuyến</div><div class="val" id="hs-profitPerTrip" style="color:var(--green);font-size:18px">—</div></div>
+    <div class="sum-card" style="flex:1;min-width:160px"><div class="lbl">Doanh thu / KM</div><div class="val" id="hs-revPerKm" style="color:var(--navy);font-size:18px">—</div></div>
+    <div class="sum-card" style="flex:1;min-width:160px"><div class="lbl">TB KM / chuyến</div><div class="val" id="hs-avgKm" style="color:var(--amber);font-size:18px">—</div></div>
+    <div class="sum-card" style="flex:1;min-width:160px"><div class="lbl">Lương / Doanh thu</div><div class="val" id="hs-wageRatio" style="color:var(--red);font-size:18px">—</div></div>
+  </div>
+  <div style="margin:14px 18px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:6px;border-bottom:1px solid var(--border)">🏆 Bảng xếp hạng lái xe — theo lợi nhuận</div>
+  <div class="tbl-wrap" style="margin:8px 18px 14px">
+    <table>
+      <thead><tr>
+        <th>Hạng</th><th>Số xe</th><th>Lái xe</th><th>Chuyến</th><th>Tổng KM</th>
+        <th>KM/Chuyến</th><th>Doanh thu</th><th>Chi phí</th><th>Lương (lưu)</th>
+        <th>Lợi nhuận</th><th>Tỷ lệ LN</th><th>Điểm HS</th>
+      </tr></thead>
+      <tbody id="tbody-hieusuat-xe"><tr><td colspan="12" class="loading">⏳ Đang tải...</td></tr></tbody>
+    </table>
+  </div>
+  <div style="margin:14px 18px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:6px;border-bottom:1px solid var(--border)">🏭 Hiệu suất theo kho / tuyến</div>
+  <div class="tbl-wrap" style="margin:8px 18px 24px">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Kho / Nhà máy</th><th>Khách hàng</th><th>Chuyến</th><th>Tổng KM</th>
+        <th>DT TB/chuyến</th><th>Lương TB/chuyến</th><th>LN TB/chuyến</th><th>Tỷ lệ LN</th>
+      </tr></thead>
+      <tbody id="tbody-hieusuat-kho"><tr><td colspan="9" class="loading">⏳ Đang tải...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB THÁNG -->
+<div id="tab-thang" style="display:none">
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Tháng</th><th>Số chuyến</th><th>Số container</th><th>Tổng KM</th>
+        <th>Doanh thu</th><th>Chi phí</th><th>Lợi nhuận</th><th>Tỷ lệ LN</th>
+      </tr></thead>
+      <tbody id="tbody-thang"><tr><td colspan="9" class="loading">⏳ Đang tải...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const CURRENT_KEY="LOGIN_USER";
+const ALL_NAV=[
+  {page:"index.html",       label:"🚚 Trucking"},
+  {page:"accountant.html",  label:"📒 Accountant"},
+  {page:"performance.html", label:"📈 Performance"},
+  {page:"overview.html",    label:"📊 Overview"},
+  {page:"master.html",      label:"📂 Master",      adminOnly:true},
+  {page:"maintenance.html", label:"🔧 Bảo dưỡng",  adminOnly:true},
+  {page:"users.html",       label:"👑 Users",        adminOnly:true},
+];
+(function(){
+  const session=JSON.parse(localStorage.getItem(CURRENT_KEY)||"{}");
+  const nav=document.getElementById("mainNav"),nr=nav.querySelector(".nav-right");
+  ALL_NAV.forEach(item=>{
+    if(item.adminOnly&&session.role!=="admin") return;
+    if(!item.adminOnly&&session.role!=="admin"&&!(session.pages||[]).includes(item.page)) return;
+    const a=document.createElement("a");a.href=item.page;a.textContent=item.label;
+    if(location.pathname.endsWith(item.page)) a.classList.add("active");
+    nav.insertBefore(a,nr);
+  });
+  document.getElementById("userInfo").textContent=session.username?`👤 ${session.username}`:"";
+  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);location.href="login.html";};
+})();
+
+// Init year select
+(function(){
+  const sel=document.getElementById("selYear");
+  const yr=new Date().getFullYear();
+  sel.innerHTML='<option value="">-- Tất cả --</option>';
+  for(let y=yr;y>=yr-4;y--){
+    const o=document.createElement("option");
+    o.value=y;o.textContent=y;
+    if(y===yr) o.selected=true;
+    sel.appendChild(o);
+  }
+  // Default: current month
+  document.getElementById("selMonth").value=String(new Date().getMonth()+1).padStart(2,"0");
+})();
+
+/* FIREBASE */
+firebase.initializeApp({
+  apiKey:"AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+  authDomain:"transportation-6d6f5.firebaseapp.com",
+  projectId:"transportation-6d6f5",
+  storageBucket:"transportation-6d6f5.firebasestorage.app",
+  messagingSenderId:"1097685849973",
+  appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
+});
+const db=firebase.firestore();
+
+let trkStore=[], costStore={}, filteredTrk=[];
+
+// Load trucking
+db.collection("trucking_plan").onSnapshot(snap=>{
+  trkStore=snap.docs.map(d=>({id:d.id,...d.data()}));
+  applyFilter();
+});
+// Load costs
+db.collection("acc_costs").onSnapshot(snap=>{
+  costStore={};
+  snap.docs.forEach(d=>{costStore[d.id]=d.data();});
+  applyFilter();
+});
+
+/* FILTER */
+function applyFilter(){
+  const month=document.getElementById("selMonth").value;
+  const year=document.getElementById("selYear").value;
+  const from=document.getElementById("fromDate").value;
+  const to=document.getElementById("toDate").value;
+
+  filteredTrk=trkStore.filter(r=>{
+    const d=r.planDate||"";
+    if(year && !d.startsWith(year)) return false;
+    if(month && d.slice(5,7)!==month) return false;
+    if(from && d<from) return false;
+    if(to && d>to) return false;
+    return true;
+  });
+
+  let label="";
+  if(year&&month) label=`Tháng ${month}/${year}`;
+  else if(year) label=`Năm ${year}`;
+  else if(from||to) label=`${from||"..."} → ${to||"..."}`;
+  else label="Tất cả thời gian";
+  document.getElementById("filterInfo").textContent=`📊 ${label} — ${filteredTrk.length} chuyến`;
+
+  renderAll();
+}
+window.clearFilter=function(){
+  document.getElementById("selMonth").value=String(new Date().getMonth()+1).padStart(2,"0");
+  document.getElementById("selYear").value=new Date().getFullYear();
+  document.getElementById("fromDate").value="";
+  document.getElementById("toDate").value="";
+  applyFilter();
+};
+
+/* HELPERS */
+function fmt(n){return Number(n||0).toLocaleString("vi-VN");}
+function pct(rev,cost){if(!rev) return 0; return Math.round((rev-cost)/rev*100);}
+function bar(pctVal){
+  const color=pctVal>=30?"green":pctVal>=10?"":("red");
+  const w=Math.min(Math.abs(pctVal),100);
+  return `<div class="bar-wrap"><div class="bar-fill ${color}" style="width:${w}%"></div></div>`;
+}
+function badge(profit){
+  return profit>=0
+    ? `<span class="badge-pos">+${fmt(profit)}</span>`
+    : `<span class="badge-neg">${fmt(profit)}</span>`;
+}
+
+/* RENDER ALL */
+function renderAll(){
+  updateSummary();
+  renderXe();
+  renderKhach();
+  renderThang();
+  renderHieuSuat();
+}
+
+/* SUMMARY */
+function updateSummary(){
+  let rev=0,cost=0,km=0;
+  filteredTrk.forEach(r=>{
+    const c=costStore[r.id]||{};
+    rev+=+c.revenue||0;
+    cost+=+c.cost||0;
+    km+=+r.km||0;
+  });
+  const profit=rev-cost;
+  document.getElementById("totalRev").textContent=fmt(rev);
+  document.getElementById("totalCost").textContent=fmt(cost);
+  document.getElementById("totalProfit").textContent=fmt(profit);
+  document.getElementById("totalProfit").style.color=profit>=0?"var(--green)":"var(--red)";
+  document.getElementById("totalTrips").textContent=filteredTrk.length;
+  document.getElementById("totalKm").textContent=fmt(km)+" km";
+}
+
+/* TAB XE */
+function renderXe(){
+  const map={};
+  filteredTrk.forEach(r=>{
+    const key=r.vehicleNo||"(chưa có xe)";
+    if(!map[key]) map[key]={vehicle:key,driver:r.driver||"",trips:0,km:0,rev:0,cost:0};
+    const c=costStore[r.id]||{};
+    map[key].trips++;
+    map[key].km+=+r.km||0;
+    map[key].rev+=+c.revenue||0;
+    map[key].cost+=+c.cost||0;
+    if(r.driver) map[key].driver=r.driver;
+  });
+  const rows=Object.values(map).sort((a,b)=>b.rev-a.rev);
+  const maxRev=Math.max(...rows.map(r=>r.rev),1);
+  const tbody=document.getElementById("tbody-xe");
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="10" class="loading">Không có dữ liệu</td></tr>';return;}
+  tbody.innerHTML=rows.map((r,i)=>{
+    const profit=r.rev-r.cost, p=pct(r.rev,r.cost);
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-weight:700;font-family:monospace">${r.vehicle}</td>
+      <td class="tl">${r.driver}</td>
+      <td style="font-weight:600">${r.trips}</td>
+      <td class="num">${fmt(r.km)} km</td>
+      <td class="num" style="color:var(--accent)">${fmt(r.rev)}</td>
+      <td class="num" style="color:var(--red)">${fmt(r.cost)}</td>
+      <td>${badge(profit)}</td>
+      <td style="font-weight:700;color:${p>=0?"var(--green)":"var(--red)"}">${p}%</td>
+      <td>${bar(p)}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* TAB KHÁCH */
+function renderKhach(){
+  const map={};
+  filteredTrk.forEach(r=>{
+    const key=r.customer||"(chưa có KH)";
+    if(!map[key]) map[key]={customer:key,cusCode:r.cusCode||"",trips:0,km:0,rev:0,cost:0};
+    const c=costStore[r.id]||{};
+    map[key].trips++;
+    map[key].km+=+r.km||0;
+    map[key].rev+=+c.revenue||0;
+    map[key].cost+=+c.cost||0;
+  });
+  const rows=Object.values(map).sort((a,b)=>b.rev-a.rev);
+  const tbody=document.getElementById("tbody-khach");
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="10" class="loading">Không có dữ liệu</td></tr>';return;}
+  tbody.innerHTML=rows.map((r,i)=>{
+    const profit=r.rev-r.cost, p=pct(r.rev,r.cost);
+    return `<tr>
+      <td>${i+1}</td>
+      <td class="tl" style="font-weight:700">${r.customer}</td>
+      <td>${r.cusCode}</td>
+      <td style="font-weight:600">${r.trips}</td>
+      <td class="num">${fmt(r.km)} km</td>
+      <td class="num" style="color:var(--accent)">${fmt(r.rev)}</td>
+      <td class="num" style="color:var(--red)">${fmt(r.cost)}</td>
+      <td>${badge(profit)}</td>
+      <td style="font-weight:700;color:${p>=0?"var(--green)":"var(--red)"}">${p}%</td>
+      <td>${bar(p)}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* TAB THÁNG */
+function renderThang(){
+  const map={};
+  filteredTrk.forEach(r=>{
+    const d=r.planDate||"";
+    const key=d.slice(0,7); // YYYY-MM
+    if(!key) return;
+    if(!map[key]) map[key]={month:key,trips:0,containers:0,km:0,rev:0,cost:0};
+    const c=costStore[r.id]||{};
+    map[key].trips++;
+    if(r.containerNo) map[key].containers++;
+    map[key].km+=+r.km||0;
+    map[key].rev+=+c.revenue||0;
+    map[key].cost+=+c.cost||0;
+  });
+  const rows=Object.values(map).sort((a,b)=>b.month.localeCompare(a.month));
+  const tbody=document.getElementById("tbody-thang");
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9" class="loading">Không có dữ liệu</td></tr>';return;}
+  tbody.innerHTML=rows.map((r,i)=>{
+    const profit=r.rev-r.cost, p=pct(r.rev,r.cost);
+    const [yr,mo]=r.month.split("-");
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-weight:700">Tháng ${mo}/${yr}</td>
+      <td style="font-weight:600">${r.trips}</td>
+      <td style="font-weight:600">${r.containers}</td>
+      <td class="num">${fmt(r.km)} km</td>
+      <td class="num" style="color:var(--accent)">${fmt(r.rev)}</td>
+      <td class="num" style="color:var(--red)">${fmt(r.cost)}</td>
+      <td>${badge(profit)}</td>
+      <td style="font-weight:700;color:${p>=0?"var(--green)":"var(--red)"}">${p}%</td>
+    </tr>`;
+  }).join("");
+}
+
+/* TABS */
+window.openTab=function(id,el){
+  ["xe","khach","thang","hieusuat"].forEach(t=>document.getElementById("tab-"+t).style.display="none");
+  document.getElementById("tab-"+id).style.display="block";
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  el.classList.add("active");
+};
+
+/* RENDER HIỆU SUẤT */
+function renderHieuSuat(){
+  // KPI tổng
+  let totalRev=0,totalCost=0,totalKm=0,totalTrips=filteredTrk.length,totalWage=0;
+  filteredTrk.forEach(r=>{
+    const c=costStore[r.id]||{};
+    totalRev+=+c.revenue||0;
+    totalCost+=+c.cost||0;
+    totalKm+=+r.km||0;
+    totalWage+=+c.wage||0;
+  });
+  const totalProfit=totalRev-totalCost;
+  document.getElementById("hs-revPerTrip").textContent = totalTrips ? fmt(Math.round(totalRev/totalTrips)) : "—";
+  document.getElementById("hs-profitPerTrip").textContent = totalTrips ? fmt(Math.round(totalProfit/totalTrips)) : "—";
+  document.getElementById("hs-revPerKm").textContent = totalKm ? fmt(Math.round(totalRev/totalKm))+" đ/km" : "—";
+  document.getElementById("hs-avgKm").textContent = totalTrips ? Math.round(totalKm/totalTrips)+" km" : "—";
+  document.getElementById("hs-wageRatio").textContent = totalRev ? Math.round(totalWage/totalRev*100)+"%" : "—";
+
+  // Bảng xe
+  const xeMap={};
+  filteredTrk.forEach(r=>{
+    const key=r.vehicleNo||"(chưa có xe)";
+    if(!xeMap[key]) xeMap[key]={vehicle:key,driver:r.driver||"",trips:0,km:0,rev:0,cost:0,wage:0};
+    const c=costStore[r.id]||{};
+    xeMap[key].trips++;
+    xeMap[key].km+=+r.km||0;
+    xeMap[key].rev+=+c.revenue||0;
+    xeMap[key].cost+=+c.cost||0;
+    xeMap[key].wage+=+c.wage||0;
+    if(r.driver) xeMap[key].driver=r.driver;
+  });
+  const xeRows=Object.values(xeMap).sort((a,b)=>(b.rev-b.cost)-(a.rev-a.cost));
+  const tbodyXe=document.getElementById("tbody-hieusuat-xe");
+  const medals=["🥇","🥈","🥉"];
+  if(!xeRows.length){tbodyXe.innerHTML='<tr><td colspan="12" class="loading">Không có dữ liệu</td></tr>';return;}
+  tbodyXe.innerHTML=xeRows.map((r,i)=>{
+    const profit=r.rev-r.cost, p=pct(r.rev,r.cost);
+    const avgKm=r.trips?Math.round(r.km/r.trips):0;
+    // Điểm hiệu suất: kết hợp tỷ lệ LN (60%) + số chuyến normalized (40%)
+    const maxTrips=Math.max(...xeRows.map(x=>x.trips),1);
+    const score=Math.round(p*0.6 + (r.trips/maxTrips*100)*0.4);
+    const rank=i<3?medals[i]:(i+1);
+    return `<tr>
+      <td style="font-size:15px">${rank}</td>
+      <td style="font-weight:700;font-family:monospace">${r.vehicle}</td>
+      <td class="tl">${r.driver}</td>
+      <td style="font-weight:600">${r.trips}</td>
+      <td class="num">${fmt(r.km)} km</td>
+      <td class="num">${avgKm} km</td>
+      <td class="num" style="color:var(--accent)">${fmt(r.rev)}</td>
+      <td class="num" style="color:var(--red)">${fmt(r.cost)}</td>
+      <td class="num" style="color:#7c3aed">${r.wage?fmt(r.wage):'<span style="color:#94a3b8">—</span>'}</td>
+      <td>${badge(profit)}</td>
+      <td style="font-weight:700;color:${p>=0?"var(--green)":"var(--red)"}">${p}%</td>
+      <td><div style="display:flex;align-items:center;gap:6px"><div class="bar-wrap"><div class="bar-fill ${score>=50?"green":score>=20?"":"red"}" style="width:${Math.min(score,100)}%"></div></div><span style="font-size:11px;font-weight:700">${score}</span></div></td>
+    </tr>`;
+  }).join("");
+
+  // Bảng kho
+  const khoMap={};
+  filteredTrk.forEach(r=>{
+    const key=(r.factory||"(chưa có kho)")+"|||"+(r.customer||"");
+    if(!khoMap[key]) khoMap[key]={factory:r.factory||"(chưa có kho)",customer:r.customer||"",trips:0,km:0,rev:0,cost:0,wage:0};
+    const c=costStore[r.id]||{};
+    khoMap[key].trips++;
+    khoMap[key].km+=+r.km||0;
+    khoMap[key].rev+=+c.revenue||0;
+    khoMap[key].cost+=+c.cost||0;
+    khoMap[key].wage+=+c.wage||0;
+  });
+  const khoRows=Object.values(khoMap).sort((a,b)=>b.trips-a.trips);
+  const tbodyKho=document.getElementById("tbody-hieusuat-kho");
+  if(!khoRows.length){tbodyKho.innerHTML='<tr><td colspan="9" class="loading">Không có dữ liệu</td></tr>';return;}
+  tbodyKho.innerHTML=khoRows.map((r,i)=>{
+    const avgRev=r.trips?Math.round(r.rev/r.trips):0;
+    const avgWage=r.trips?Math.round(r.wage/r.trips):0;
+    const avgProfit=r.trips?Math.round((r.rev-r.cost)/r.trips):0;
+    const p=pct(r.rev,r.cost);
+    return `<tr>
+      <td>${i+1}</td>
+      <td class="tl" style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.factory}">${r.factory}</td>
+      <td class="tl">${r.customer}</td>
+      <td style="font-weight:700">${r.trips}</td>
+      <td class="num">${fmt(r.km)} km</td>
+      <td class="num" style="color:var(--accent)">${fmt(avgRev)}</td>
+      <td class="num" style="color:#7c3aed">${avgWage?fmt(avgWage):'<span style="color:#94a3b8">—</span>'}</td>
+      <td class="num" style="color:${avgProfit>=0?"var(--green)":"var(--red)"};font-weight:700">${fmt(avgProfit)}</td>
+      <td style="font-weight:700;color:${p>=0?"var(--green)":"var(--red)"}">${p}%</td>
+    </tr>`;
+  }).join("");
+}
+</script>
+</body>
+</html>
