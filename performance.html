@@ -525,8 +525,19 @@ function renderKhach(){
 
 /* TAB THÁNG */
 function renderThang(){
+  // Tab tháng luôn hiển thị tất cả tháng trong năm đang chọn (bỏ qua filter tháng cụ thể)
+  const year=document.getElementById("selYear").value;
+  const from=document.getElementById("fromDate").value;
+  const to  =document.getElementById("toDate").value;
+  const srcThang=trkStore.filter(r=>{
+    const d=r.planDate||"";
+    if(year && !d.startsWith(year)) return false;
+    if(from && d<from) return false;
+    if(to   && d>to)   return false;
+    return true;
+  });
   const map={};
-  filteredTrk.forEach(r=>{
+  srcThang.forEach(r=>{
     const d=r.planDate||"";
     const key=d.slice(0,7); // YYYY-MM
     if(!key) return;
