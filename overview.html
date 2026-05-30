@@ -114,6 +114,7 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <nav class="nav" id="mainNav">
   <div class="nav-right">
@@ -581,17 +582,54 @@ window.renderSalary=function(){
 };
 
 /* ══════════════════════════════════════
-   EXPORT EXCEL
+   EXPORT EXCEL CHUYÊN NGHIỆP (ExcelJS)
 ══════════════════════════════════════ */
-function csvDownload(filename, rows){
-  const csv=rows.map(r=>r.map(c=>'"'+(String(c||"").replace(/"/g,'""'))+'"').join(",")).join("\n");
-  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=filename;
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
+
+/* ── Helpers style ── */
+function xlCell(ws, row, col, value, opts={}){
+  const cell = ws.getCell(row, col);
+  cell.value = value;
+  if(opts.bold)      cell.font = {...(cell.font||{}), bold:true, name:'Arial', size: opts.size||10};
+  else               cell.font = {name:'Arial', size: opts.size||10, ...(opts.color?{color:{argb:opts.color}}:{})};
+  if(opts.bold&&opts.color) cell.font.color={argb:opts.color};
+  if(opts.fill)      cell.fill = {type:'pattern',pattern:'solid',fgColor:{argb:opts.fill}};
+  if(opts.align)     cell.alignment = {horizontal:opts.align, vertical:'middle', wrapText:!!opts.wrap};
+  else               cell.alignment = {vertical:'middle', wrapText:!!opts.wrap};
+  if(opts.fmt)       cell.numFmt = opts.fmt;
+  if(opts.border){
+    const b={style:'thin',color:{argb:'FFB0B8C8'}};
+    cell.border={top:b,left:b,bottom:b,right:b};
+  }
+  if(opts.borderBot){
+    const bh={style:'medium',color:{argb:'FF1D6EF5'}};
+    cell.border={...(cell.border||{}), bottom:bh};
+  }
+  return cell;
 }
 
+function getCompanyInfo(){
+  try{
+    const m=JSON.parse(localStorage.getItem("MASTER_ALL_V4")||"{}");
+    const co=m.company||{};
+    return {name: co.name||"CÔNG TY VẬN TẢI", address: co.address||"", phone: co.phone||"", tax: co.tax||""};
+  }catch(e){return {name:"CÔNG TY VẬN TẢI",address:"",phone:"",tax:""};}
+}
+
+function xlDownload(wb, filename){
+  wb.xlsx.writeBuffer().then(buf=>{
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filename;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  });
+}
+
+function fmtNum(n){ return Number(n||0).toLocaleString("vi-VN"); }
+
+/* ══════════════════════════════════════
+   EXPORT CÔNG NỢ KHÁCH HÀNG
+══════════════════════════════════════ */
 window.exportDebit=function(){
   const kw=(document.getElementById("dSearch").value||"").toLowerCase().trim();
   const from=document.getElementById("dFrom").value;
@@ -602,81 +640,392 @@ window.exportDebit=function(){
     (r.customer||"").toLowerCase().includes(kw)||
     (r.cusCode||"").toLowerCase().includes(kw)||
     (r.containerNo||"").toLowerCase().includes(kw)||
-    (r.vehicleNo||"").toLowerCase().includes(kw)||
-    (r.depot||"").toLowerCase().includes(kw)||
-    (r.port||"").toLowerCase().includes(kw)
+    (r.vehicleNo||"").toLowerCase().includes(kw)
   );
   if(from) rows=rows.filter(r=>(r.planDate||"")>=from);
   if(to)   rows=rows.filter(r=>(r.planDate||"")<=to);
   if(cus)  rows=rows.filter(r=>r.customer===cus);
 
-  const hdr=["#","Ngày","Khách hàng","Mã KH","Số xe","Container","Nơi lấy","Nơi hạ",
-    "Đơn giá VC","Phí nâng","Phí hạ","Cược cont","Phí khác",
-    "Ghi chú nơi lấy","Ghi chú nơi trả","Tổng trước thuế","VAT 10%","Tổng sau thuế"];
-  const data=rows.map((r,i)=>{
-    const c=costStore[r.id]||{};
-    const price=+r.price||0, lift=+c.lift||0, dropFee=+c.dropFee||0,
+  const co = getCompanyInfo();
+  const today = new Date();
+  const todayStr = `${today.getDate().toString().padStart(2,"0")}/${(today.getMonth()+1).toString().padStart(2,"0")}/${today.getFullYear()}`;
+  let period = "Tất cả";
+  if(from&&to) period=`${fmtDate(from)} – ${fmtDate(to)}`;
+  else if(from) period=`Từ ${fmtDate(from)}`;
+  else if(to)   period=`Đến ${fmtDate(to)}`;
+  if(cus) period += ` | KH: ${cus}`;
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator="TMS System"; wb.created=today;
+  const ws = wb.addWorksheet("Công nợ", {
+    pageSetup:{paperSize:9, orientation:"landscape", fitToPage:true, fitToWidth:1, fitToHeight:0,
+               margins:{left:0.5,right:0.5,top:0.75,bottom:0.75,header:0.3,footer:0.3}}
+  });
+
+  // ── Độ rộng cột ──
+  const COLS=[4,10,20,8,10,14,16,16,12,10,10,10,10,14,14,14,10,14];
+  COLS.forEach((w,i)=>{ ws.getColumn(i+1).width=w; });
+  const NCOLS=18;
+
+  let r=1;
+  // ── Header: Tên công ty ──
+  ws.mergeCells(r,1,r,NCOLS);
+  xlCell(ws,r,1, co.name.toUpperCase(), {bold:true, size:14, color:"FF0D2248", align:"center"});
+  ws.getRow(r).height=22; r++;
+
+  // ── Địa chỉ / MST ──
+  ws.mergeCells(r,1,r,NCOLS);
+  const addrParts=[co.address,co.phone?`ĐT: ${co.phone}`:"",co.tax?`MST: ${co.tax}`:""].filter(Boolean);
+  xlCell(ws,r,1, addrParts.join("   "), {size:9, color:"FF64748B", align:"center"});
+  ws.getRow(r).height=14; r++;
+
+  // ── Dòng trống ──
+  ws.getRow(r).height=6; r++;
+
+  // ── Tiêu đề bảng ──
+  ws.mergeCells(r,1,r,NCOLS);
+  xlCell(ws,r,1,"BẢNG CÔNG NỢ VẬN CHUYỂN",{bold:true,size:13,color:"FF1D6EF5",align:"center"});
+  ws.getRow(r).height=20; r++;
+
+  ws.mergeCells(r,1,r,NCOLS);
+  xlCell(ws,r,1,`Kỳ: ${period}`,{size:9,color:"FF64748B",align:"center"});
+  ws.getRow(r).height=13; r++;
+
+  // ── Dòng trống ──
+  ws.getRow(r).height=6; r++;
+
+  // ── Summary: 4 ô tổng hợp ──
+  let sumRev=0, sumTax=0, sumAfter=0;
+  const dataRows = rows.map((row,i)=>{
+    const c=costStore[row.id]||{};
+    const price=+row.price||0, lift=+c.lift||0, dropFee=+c.dropFee||0,
           deposit=+c.deposit||0, other=+c.other||0;
     const total=price+lift+dropFee+deposit+other;
     const tax=Math.round(total*0.1);
-    return [i+1, fmtDate(r.planDate), r.customer||"", r.cusCode||"",
-      r.vehicleNo||"", r.containerNo||"", r.depot||"", r.port||"",
-      price, lift, dropFee, deposit, other,
-      r.depotNote||r.depot||"", r.portNote||r.port||"",
-      total, tax, total+tax];
+    sumRev+=total; sumTax+=tax; sumAfter+=total+tax;
+    return {row, c, price, lift, dropFee, deposit, other, total, tax, i};
   });
-  csvDownload("CongNo_KhachHang.csv",[hdr,...data]);
-  showToast("✅ Xuất Excel công nợ thành công");
+  // Summary cards inline
+  const sumLabels=["TỔNG TRƯỚC THUẾ","THUẾ VAT (10%)","TỔNG SAU THUẾ","SỐ CHUYẾN"];
+  const sumVals=[fmtNum(sumRev)+" đ", fmtNum(sumTax)+" đ", fmtNum(sumAfter)+" đ", rows.length+" chuyến"];
+  const sumColors=["FF1D6EF5","FFE67700","FF0D2248","FF0D9F6E"];
+  // 4 khối, mỗi khối 4-5 cột
+  [[1,4],[5,9],[10,13],[14,18]].forEach(([cs,ce],idx)=>{
+    ws.mergeCells(r,cs,r,ce);
+    xlCell(ws,r,cs, sumLabels[idx], {bold:true,size:8,color:"FF64748B",align:"center",fill:"FFF7F9FF"});
+    ws.getCell(r,cs).border={top:{style:"thin",color:{argb:"FFE2E8F5"}},left:{style:"thin",color:{argb:"FFE2E8F5"}},right:{style:"thin",color:{argb:"FFE2E8F5"}}};
+  });
+  ws.getRow(r).height=14; r++;
+  [[1,4],[5,9],[10,13],[14,18]].forEach(([cs,ce],idx)=>{
+    ws.mergeCells(r,cs,r,ce);
+    xlCell(ws,r,cs, sumVals[idx], {bold:true,size:12,color:sumColors[idx],align:"center",fill:"FFFFFFFF"});
+    ws.getCell(r,cs).border={left:{style:"thin",color:{argb:"FFE2E8F5"}},right:{style:"thin",color:{argb:"FFE2E8F5"}},bottom:{style:"thin",color:{argb:"FFE2E8F5"}}};
+  });
+  ws.getRow(r).height=18; r++;
+
+  // ── Dòng trống ──
+  ws.getRow(r).height=6; r++;
+
+  // ── Header bảng ── (2 dòng: dòng 1 gộp "Phụ phí", dòng 2 chi tiết)
+  const HDR_FILL="FF0D2248", HDR_COLOR="FFFFFFFF";
+  // Dòng 1 header
+  const hdr1Def=[
+    [1,1,"#"],[2,2,"NGÀY"],[3,3,"KHÁCH HÀNG"],[4,4,"MÃ KH"],[5,5,"SỐ XE"],[6,6,"CONTAINER"],
+    [7,7,"NƠI LẤY"],[8,8,"NƠI HẠ"],[9,9,"ĐƠN GIÁ VC"],
+    [10,12,"PHỤ PHÍ"],[13,13,"PHÍ KHÁC"],[14,14,"GHI CHÚ NƠI LẤY"],[15,15,"GHI CHÚ NƠI TRẢ"],
+    [16,16,"TỔNG TRƯỚC THUẾ"],[17,17,"VAT 10%"],[18,18,"TỔNG SAU THUẾ"]
+  ];
+  hdr1Def.forEach(([cs,ce,label])=>{
+    ws.mergeCells(r,cs,r, ce===cs?r:r);
+    if(cs!==ce) ws.mergeCells(r,cs,r,ce);
+    xlCell(ws,r,cs,label,{bold:true,size:9,color:HDR_COLOR,fill:HDR_FILL,align:"center"});
+    for(let col=cs;col<=ce;col++){
+      const cell=ws.getCell(r,col);
+      cell.border={top:{style:"thin",color:{argb:"FF334E7A"}},left:{style:"thin",color:{argb:"FF334E7A"}},bottom:{style:"thin",color:{argb:"FF334E7A"}},right:{style:"thin",color:{argb:"FF334E7A"}}};
+    }
+  });
+  ws.getRow(r).height=16; r++;
+
+  // Dòng 2 header (sub cho phụ phí)
+  const SUB_FILL="FF1E3A5F";
+  [1,2,3,4,5,6,7,8,9,13,14,15,16,17,18].forEach(col=>{
+    ws.mergeCells(r,col,r,col);
+    xlCell(ws,r,col,"",{fill:SUB_FILL});
+    ws.getCell(r,col).border={top:{style:"thin",color:{argb:"FF334E7A"}},bottom:{style:"thin",color:{argb:"FF334E7A"}}};
+  });
+  [[10,"PHÍ NÂNG"],[11,"PHÍ HẠ"],[12,"CƯỢC CONT"]].forEach(([col,label])=>{
+    xlCell(ws,r,col,label,{bold:true,size:8,color:"FFFBBF24",fill:SUB_FILL,align:"center"});
+    ws.getCell(r,col).border={top:{style:"thin",color:{argb:"FF334E7A"}},left:{style:"thin",color:{argb:"FF334E7A"}},bottom:{style:"thin",color:{argb:"FF334E7A"}},right:{style:"thin",color:{argb:"FF334E7A"}}};
+  });
+  ws.getRow(r).height=14; r++;
+
+  const dataStartRow=r;
+  // ── Data rows ──
+  dataRows.forEach(({row,c,price,lift,dropFee,deposit,other,total,tax,i})=>{
+    const even = i%2===1;
+    const bg = even?"FFF7F9FF":"FFFFFFFF";
+    const vals=[
+      i+1, fmtDate(row.planDate), row.customer||"", row.cusCode||"",
+      row.vehicleNo||"", row.containerNo||"", row.depot||"", row.port||"",
+      price, lift, dropFee, deposit, other,
+      row.depotNote||row.depot||"", row.portNote||row.port||"",
+      total, tax, total+tax
+    ];
+    const numCols=[9,10,11,12,13,16,17,18];
+    const numFmt='#,##0';
+    vals.forEach((v,ci)=>{
+      const col=ci+1;
+      const isNum=numCols.includes(col);
+      const opts={fill:bg,border:true,align:isNum?"right":(col<=2?"center":"left"),size:9};
+      if(isNum) opts.fmt=numFmt;
+      if(col===16) opts.color="FF1D6EF5";
+      if(col===17) opts.color="FFE67700";
+      if(col===18){opts.color="FF0D2248";opts.bold=true;}
+      xlCell(ws,r,col,isNum?+v:v,opts);
+    });
+    ws.getRow(r).height=15; r++;
+  });
+
+  // ── Footer tổng ──
+  ws.mergeCells(r,1,r,15);
+  xlCell(ws,r,1,`TỔNG CỘNG (${rows.length} chuyến)`,{bold:true,size:10,color:"FF0D2248",fill:"FFF0F4FF",align:"left"});
+  ws.getCell(r,1).border={top:{style:"medium",color:{argb:"FF1D6EF5"}},bottom:{style:"thin"}};
+  [[16,sumRev,"FF1D6EF5"],[17,sumTax,"FFE67700"],[18,sumAfter,"FF0D2248"]].forEach(([col,val,clr])=>{
+    xlCell(ws,r,col,val,{bold:true,size:10,color:clr,fill:"FFF0F4FF",fmt:"#,##0",align:"right"});
+    ws.getCell(r,col).border={top:{style:"medium",color:{argb:"FF1D6EF5"}},bottom:{style:"thin"}};
+  });
+  ws.getRow(r).height=17; r++;
+
+  // ── Tax box ──
+  r+=1;
+  ws.mergeCells(r,14,r,15);
+  xlCell(ws,r,14,"Thành tiền trước thuế:", {bold:false,size:10,align:"right"});
+  xlCell(ws,r,16,sumRev,{bold:true,size:10,color:"FF1D6EF5",fmt:"#,##0",align:"right"});
+  ws.mergeCells(r,17,r,18);
+  xlCell(ws,r,17,"đ",{size:10});
+  ws.getRow(r).height=15; r++;
+
+  ws.mergeCells(r,14,r,15);
+  xlCell(ws,r,14,"Thuế VAT (10%):", {bold:false,size:10,align:"right"});
+  xlCell(ws,r,16,sumTax,{bold:true,size:10,color:"FFE67700",fmt:"#,##0",align:"right"});
+  ws.mergeCells(r,17,r,18);
+  xlCell(ws,r,17,"đ",{size:10});
+  ws.getRow(r).height=15; r++;
+
+  ws.mergeCells(r,14,r,15);
+  xlCell(ws,r,14,"TỔNG CỘNG SAU THUẾ:", {bold:true,size:11,color:"FF0D2248",align:"right"});
+  xlCell(ws,r,16,sumAfter,{bold:true,size:12,color:"FF0D2248",fmt:"#,##0",align:"right"});
+  ws.mergeCells(ws.getRow(r).getCell(17), ws.getRow(r).getCell(18));
+  ws.getCell(r,17).value="đ"; ws.getCell(r,17).font={bold:true,name:"Arial",size:11};
+  ws.getRow(r).height=18; r++;
+
+  // ── Chữ ký ──
+  r+=2;
+  ws.mergeCells(r,1,r,6);
+  xlCell(ws,r,1,"Người lập bảng", {bold:true,size:10,align:"center"});
+  ws.mergeCells(r,13,r,18);
+  xlCell(ws,r,13,"Ngày lập: "+todayStr, {size:10,align:"center",color:"FF64748B"});
+  ws.getRow(r).height=15; r++;
+
+  ws.mergeCells(r,1,r,6);
+  xlCell(ws,r,1,"(Ký, ghi rõ họ tên)", {size:9,color:"FF94A3B8",align:"center"});
+  ws.mergeCells(r,13,r,18);
+  xlCell(ws,r,13,"Đại diện công ty", {bold:true,size:10,align:"center"});
+  ws.getRow(r).height=14; r++;
+
+  ws.mergeCells(r,13,r,18);
+  xlCell(ws,r,13,"(Ký, đóng dấu)", {size:9,color:"FF94A3B8",align:"center"});
+  ws.getRow(r).height=14;
+
+  // ── In ──
+  ws.headerFooter={
+    oddHeader:`&C&B${co.name}\n&CBẢNG CÔNG NỢ VẬN CHUYỂN`,
+    oddFooter:`&LIn ngày ${todayStr}&RTrang &P / &N`
+  };
+
+  xlDownload(wb, `CongNo_${(cus||"TatCa").replace(/\s+/g,"_")}_${todayStr.replace(/\//g,"-")}.xlsx`);
+  showToast("✅ Đã xuất Excel công nợ chuyên nghiệp");
 };
 
+/* ══════════════════════════════════════
+   EXPORT BẢNG LƯƠNG LÁI XE
+══════════════════════════════════════ */
 window.exportSalary=function(){
   const kw=(document.getElementById("sSearch").value||"").toLowerCase().trim();
   const from=document.getElementById("sFrom").value;
   const to=document.getElementById("sTo").value;
   const drv=document.getElementById("sDriver").value;
   let rows=[...trkStore];
-  if(kw) rows=rows.filter(r=>
-    (r.driver||"").toLowerCase().includes(kw)||
-    (r.vehicleNo||"").toLowerCase().includes(kw)
-  );
+  if(kw) rows=rows.filter(r=>(r.driver||"").toLowerCase().includes(kw)||(r.vehicleNo||"").toLowerCase().includes(kw));
   if(from) rows=rows.filter(r=>(r.planDate||"")>=from);
   if(to)   rows=rows.filter(r=>(r.planDate||"")<=to);
   if(drv)  rows=rows.filter(r=>r.driver===drv);
 
-  // Sheet 1: Chi tiết
-  const hdr1=["#","Ngày","Lái xe","Số xe","Khách hàng","Container","Nơi lấy","Nơi hạ","KM","Lương chuyến","Ghi chú"];
-  const data1=rows.map((r,i)=>{
-    const c=costStore[r.id]||{};
-    const wage=+c.wage||+r.wage||0;
-    return [i+1, fmtDate(r.planDate), r.driver||"", r.vehicleNo||"",
-      r.customer||"", r.containerNo||"", r.depot||"", r.port||"",
-      r.km||0, wage, c.note||""];
+  const co=getCompanyInfo();
+  const today=new Date();
+  const todayStr=`${today.getDate().toString().padStart(2,"0")}/${(today.getMonth()+1).toString().padStart(2,"0")}/${today.getFullYear()}`;
+  let period="Tất cả";
+  if(from&&to) period=`${fmtDate(from)} – ${fmtDate(to)}`;
+  else if(from) period=`Từ ${fmtDate(from)}`;
+  else if(to)   period=`Đến ${fmtDate(to)}`;
+  if(drv) period+=` | Lái xe: ${drv}`;
+
+  const wb=new ExcelJS.Workbook();
+  wb.creator="TMS System"; wb.created=today;
+
+  /* ── Sheet 1: Chi tiết chuyến ── */
+  const ws1=wb.addWorksheet("Chi tiết lương",{
+    pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0,
+               margins:{left:0.5,right:0.5,top:0.75,bottom:0.75}}
+  });
+  const NCOLS1=11;
+  [4,10,18,10,18,14,16,16,8,13,20].forEach((w,i)=>ws1.getColumn(i+1).width=w);
+
+  let r=1;
+  ws1.mergeCells(r,1,r,NCOLS1);
+  xlCell(ws1,r,1,co.name.toUpperCase(),{bold:true,size:13,color:"FF0D2248",align:"center"});
+  ws1.getRow(r).height=20; r++;
+  ws1.mergeCells(r,1,r,NCOLS1);
+  const addrParts=[co.address,co.phone?`ĐT: ${co.phone}`:"",co.tax?`MST: ${co.tax}`:""].filter(Boolean);
+  xlCell(ws1,r,1,addrParts.join("   "),{size:9,color:"FF64748B",align:"center"});
+  ws1.getRow(r).height=13; r++;
+  ws1.getRow(r).height=6; r++;
+  ws1.mergeCells(r,1,r,NCOLS1);
+  xlCell(ws1,r,1,"BẢNG LƯƠNG LÁI XE - CHI TIẾT TỪNG CHUYẾN",{bold:true,size:13,color:"FF1D6EF5",align:"center"});
+  ws1.getRow(r).height=20; r++;
+  ws1.mergeCells(r,1,r,NCOLS1);
+  xlCell(ws1,r,1,`Kỳ: ${period}`,{size:9,color:"FF64748B",align:"center"});
+  ws1.getRow(r).height=13; r++;
+  ws1.getRow(r).height=6; r++;
+
+  // Header
+  const hdrLabels1=["#","NGÀY","LÁI XE","SỐ XE","KHÁCH HÀNG","CONTAINER","NƠI LẤY","NƠI HẠ","KM","LƯƠNG CHUYẾN","GHI CHÚ"];
+  hdrLabels1.forEach((label,ci)=>{
+    xlCell(ws1,r,ci+1,label,{bold:true,size:9,color:"FFFFFFFF",fill:"FF0D2248",align:"center",border:true});
+  });
+  ws1.getRow(r).height=16; r++;
+
+  let totalWage=0;
+  rows.forEach((row,i)=>{
+    const c=costStore[row.id]||{};
+    const wage=+c.wage||+row.wage||0;
+    totalWage+=wage;
+    const bg=i%2===1?"FFF7F9FF":"FFFFFFFF";
+    const vals=[i+1,fmtDate(row.planDate),row.driver||"",row.vehicleNo||"",
+      row.customer||"",row.containerNo||"",row.depot||"",row.port||"",
+      +row.km||0, wage, c.note||""];
+    vals.forEach((v,ci)=>{
+      const col=ci+1;
+      const isNum=[9,10].includes(col);
+      xlCell(ws1,r,col,v,{fill:bg,border:true,size:9,align:isNum?"right":(col<=2?"center":"left"),
+        fmt:isNum?"#,##0":undefined, color:col===10?"FF0D9F6E":undefined,
+        bold:col===10});
+    });
+    ws1.getRow(r).height=14; r++;
   });
 
-  // Sheet 2 header (tổng hợp theo lái xe) — ghép vào cùng file, cách 2 dòng trống
-  const hdr2=["#","Lái xe","Số xe","Số chuyến","Tổng KM","Tổng lương","Lương BQ/chuyến"];
+  // Footer
+  ws1.mergeCells(r,1,r,9);
+  xlCell(ws1,r,1,`TỔNG CỘNG (${rows.length} chuyến)`,{bold:true,size:10,fill:"FFF0F4FF",align:"left"});
+  ws1.getCell(r,1).border={top:{style:"medium",color:{argb:"FF1D6EF5"}}};
+  xlCell(ws1,r,10,totalWage,{bold:true,size:11,color:"FF0D9F6E",fill:"FFF0F4FF",fmt:"#,##0",align:"right"});
+  ws1.getCell(r,10).border={top:{style:"medium",color:{argb:"FF1D6EF5"}}};
+  xlCell(ws1,r,11,"",{fill:"FFF0F4FF"});
+  ws1.getRow(r).height=17; r++;
+
+  // Chữ ký
+  r+=2;
+  ws1.mergeCells(r,1,r,3);
+  xlCell(ws1,r,1,"Người lập bảng",{bold:true,size:10,align:"center"});
+  ws1.mergeCells(r,9,r,NCOLS1);
+  xlCell(ws1,r,9,"Ngày lập: "+todayStr,{size:10,align:"center",color:"FF64748B"});
+  ws1.getRow(r).height=15; r++;
+  ws1.mergeCells(r,1,r,3);
+  xlCell(ws1,r,1,"(Ký, ghi rõ họ tên)",{size:9,color:"FF94A3B8",align:"center"});
+  ws1.mergeCells(r,9,r,NCOLS1);
+  xlCell(ws1,r,9,"Đại diện công ty (Ký, đóng dấu)",{size:9,color:"FF94A3B8",align:"center"});
+  ws1.getRow(r).height=14;
+
+  /* ── Sheet 2: Tổng hợp theo lái xe ── */
+  const ws2=wb.addWorksheet("Tổng hợp lương",{
+    pageSetup:{paperSize:9,orientation:"portrait",fitToPage:true,fitToWidth:1,fitToHeight:0,
+               margins:{left:0.5,right:0.5,top:0.75,bottom:0.75}}
+  });
+  [5,20,12,10,12,15,15].forEach((w,i)=>ws2.getColumn(i+1).width=w);
+  const NCOLS2=7;
+
+  r=1;
+  ws2.mergeCells(r,1,r,NCOLS2);
+  xlCell(ws2,r,1,co.name.toUpperCase(),{bold:true,size:13,color:"FF0D2248",align:"center"});
+  ws2.getRow(r).height=20; r++;
+  ws2.mergeCells(r,1,r,NCOLS2);
+  xlCell(ws2,r,1,addrParts.join("   "),{size:9,color:"FF64748B",align:"center"});
+  ws2.getRow(r).height=13; r++;
+  ws2.getRow(r).height=6; r++;
+  ws2.mergeCells(r,1,r,NCOLS2);
+  xlCell(ws2,r,1,"TỔNG HỢP LƯƠNG LÁI XE",{bold:true,size:13,color:"FF1D6EF5",align:"center"});
+  ws2.getRow(r).height=20; r++;
+  ws2.mergeCells(r,1,r,NCOLS2);
+  xlCell(ws2,r,1,`Kỳ: ${period}`,{size:9,color:"FF64748B",align:"center"});
+  ws2.getRow(r).height=13; r++;
+  ws2.getRow(r).height=6; r++;
+
+  const hdrLabels2=["#","LÁI XE","SỐ XE","SỐ CHUYẾN","TỔNG KM","TỔNG LƯƠNG","LƯƠNG BQ/CHUYẾN"];
+  hdrLabels2.forEach((label,ci)=>{
+    xlCell(ws2,r,ci+1,label,{bold:true,size:9,color:"FFFFFFFF",fill:"FF0D2248",align:"center",border:true});
+  });
+  ws2.getRow(r).height=16; r++;
+
   const driverMap={};
-  rows.forEach(r=>{
-    const key=r.driver||"(Chưa có)";
-    if(!driverMap[key]) driverMap[key]={driver:key,vehicle:r.vehicleNo||"",trips:0,km:0,wage:0};
-    const c=costStore[r.id]||{};
+  rows.forEach(row=>{
+    const key=row.driver||"(Chưa có)";
+    if(!driverMap[key]) driverMap[key]={driver:key,vehicle:row.vehicleNo||"",trips:0,km:0,wage:0};
+    const c=costStore[row.id]||{};
     driverMap[key].trips++;
-    driverMap[key].km+=+r.km||0;
-    driverMap[key].wage+=+c.wage||+r.wage||0;
-    if(r.vehicleNo) driverMap[key].vehicle=r.vehicleNo;
+    driverMap[key].km+=+row.km||0;
+    driverMap[key].wage+=+c.wage||+row.wage||0;
+    if(row.vehicleNo) driverMap[key].vehicle=row.vehicleNo;
   });
-  const data2=Object.values(driverMap).sort((a,b)=>b.wage-a.wage).map((d,i)=>[
-    i+1, d.driver, d.vehicle, d.trips, d.km,
-    d.wage, d.trips?Math.round(d.wage/d.trips):0
-  ]);
+  const driverRows=Object.values(driverMap).sort((a,b)=>b.wage-a.wage);
+  let totalW=0;
+  driverRows.forEach((d,i)=>{
+    totalW+=d.wage;
+    const bg=i%2===1?"FFF7F9FF":"FFFFFFFF";
+    const avg=d.trips?Math.round(d.wage/d.trips):0;
+    [i+1,d.driver,d.vehicle,d.trips,d.km,d.wage,avg].forEach((v,ci)=>{
+      const col=ci+1;
+      const isNum=[4,5,6,7].includes(col);
+      xlCell(ws2,r,col,v,{fill:bg,border:true,size:10,align:isNum?"right":(col===1?"center":"left"),
+        fmt:isNum&&col>=6?"#,##0":undefined,
+        color:col===6?"FF0D9F6E":col===7?"FF64748B":undefined,
+        bold:col===6});
+    });
+    ws2.getRow(r).height=16; r++;
+  });
 
-  const allRows=[
-    hdr1,...data1,
-    [],[],["=== TỔNG HỢP THEO LÁI XE ==="],
-    hdr2,...data2
-  ];
-  csvDownload("BangLuong_LaiXe.csv", allRows);
-  showToast("✅ Xuất Excel bảng lương thành công");
+  // Footer tổng
+  ws2.mergeCells(r,1,r,5);
+  xlCell(ws2,r,1,`TỔNG (${driverRows.length} lái xe)`,{bold:true,size:10,fill:"FFF0F4FF",align:"left"});
+  ws2.getCell(r,1).border={top:{style:"medium",color:{argb:"FF1D6EF5"}}};
+  xlCell(ws2,r,6,totalW,{bold:true,size:11,color:"FF0D9F6E",fill:"FFF0F4FF",fmt:"#,##0",align:"right"});
+  ws2.getCell(r,6).border={top:{style:"medium",color:{argb:"FF1D6EF5"}}};
+  xlCell(ws2,r,7,"",{fill:"FFF0F4FF"});
+  ws2.getRow(r).height=17; r++;
+
+  r+=2;
+  ws2.mergeCells(r,1,r,2);
+  xlCell(ws2,r,1,"Người lập bảng",{bold:true,size:10,align:"center"});
+  ws2.mergeCells(r,6,r,7);
+  xlCell(ws2,r,6,"Ngày lập: "+todayStr,{size:10,align:"center",color:"FF64748B"});
+  ws2.getRow(r).height=15; r++;
+  ws2.mergeCells(r,1,r,2);
+  xlCell(ws2,r,1,"(Ký, ghi rõ họ tên)",{size:9,color:"FF94A3B8",align:"center"});
+  ws2.mergeCells(r,6,r,7);
+  xlCell(ws2,r,6,"Đại diện công ty (Ký, đóng dấu)",{size:9,color:"FF94A3B8",align:"center"});
+  ws2.getRow(r).height=14;
+
+  xlDownload(wb, `BangLuong_${(drv||"TatCa").replace(/\s+/g,"_")}_${todayStr.replace(/\//g,"-")}.xlsx`);
+  showToast("✅ Đã xuất Excel bảng lương chuyên nghiệp");
 };
 </script>
 </body>
