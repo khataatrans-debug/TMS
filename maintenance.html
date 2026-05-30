@@ -832,6 +832,7 @@ function renderOverview(){
 }
 
 
+window.exportTyre=function(){
   const hdr=["Ngày","Số xe","Mooc","Số Seri","KM lúc thay","KM đã dùng","KM định mức","KM còn lại","Vị trí","Diễn giải"];
   const rows=DB.tyres.map(r=>[r.date,r.truck,r.mooc,r.serial,r.kmAt,r.kmUsed,r.kmStd,r.kmRemain,r.pos,r.desc]);
   const csv=[hdr,...rows].map(r=>r.map(c=>'"'+(c||"")+'"').join(",")).join("\n");
