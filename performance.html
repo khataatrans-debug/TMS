@@ -117,7 +117,7 @@ tr:hover td{background:#e8eeff!important;}
 <!-- TABS -->
 <div class="tabs-wrap">
   <button class="tab-btn active" onclick="openTab('xe',this)">🚛 Theo xe</button>
-  <button class="tab-btn" onclick="openTab('khach',this)">👤 Theo khách hàng</button>
+  <button class="tab-btn" onclick="openTab('khach',this)">📦 Hiệu suất khách hàng</button>
   <button class="tab-btn" onclick="openTab('thang',this)">📅 Theo tháng</button>
   <button class="tab-btn" onclick="openTab('suachua',this)">🔧 Chi phí & Hiệu suất</button>
 </div>
@@ -137,13 +137,46 @@ tr:hover td{background:#e8eeff!important;}
 
 <!-- TAB KHÁCH -->
 <div id="tab-khach" style="display:none">
-  <div class="tbl-wrap">
+
+  <!-- ── KPI CARDS ── -->
+  <div class="sum-row" style="padding-bottom:4px">
+    <div class="sum-card"><div class="lbl">Tổng doanh thu KH</div><div class="val" id="kh-totalRev" style="color:var(--accent);font-size:18px">—</div></div>
+    <div class="sum-card"><div class="lbl">Tổng chi phí KH</div><div class="val" id="kh-totalCost" style="color:var(--red);font-size:18px">—</div></div>
+    <div class="sum-card"><div class="lbl">Lợi nhuận</div><div class="val" id="kh-totalProfit" style="color:var(--green);font-size:18px">—</div></div>
+    <div class="sum-card"><div class="lbl">Tổng chuyến</div><div class="val" id="kh-totalTrips" style="color:var(--navy);font-size:18px">—</div></div>
+    <div class="sum-card"><div class="lbl">Tổng KM</div><div class="val" id="kh-totalKm" style="color:var(--amber);font-size:18px">—</div></div>
+  </div>
+
+  <!-- ── BREAKDOWN DOANH THU THEO KHÁCH ── -->
+  <div style="margin:14px 18px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:6px;border-bottom:1px solid var(--border)">
+    📊 Cơ cấu doanh thu theo khách hàng (% trên tổng doanh thu)
+  </div>
+  <div id="khBarWrap" style="margin:12px 18px;background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)">
+    <div id="khStackedBar" style="display:flex;height:28px;border-radius:6px;overflow:hidden;margin-bottom:12px"></div>
+    <div id="khBreakdownLegend" style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px"></div>
+  </div>
+
+  <!-- ── BẢNG CHI TIẾT THEO KHÁCH HÀNG ── -->
+  <div style="margin:14px 18px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:6px;border-bottom:1px solid var(--border)">
+    📦 Phân tích hiệu suất chi tiết theo khách hàng
+  </div>
+  <div class="tbl-wrap" style="margin:8px 18px 24px">
     <table>
       <thead><tr>
-        <th>#</th><th>Khách hàng</th><th>Mã KH</th><th>Số chuyến</th><th>Tổng KM</th>
-        <th>Doanh thu</th><th>Chi phí</th><th>Lợi nhuận</th><th>Tỷ lệ LN</th><th>Hiệu suất</th>
+        <th>#</th>
+        <th>Khách hàng</th>
+        <th>Mã KH</th>
+        <th>Chuyến</th>
+        <th>Tổng KM</th>
+        <th style="background:#1d6ef5;color:#fff">Doanh thu</th>
+        <th style="background:#1d6ef5;color:#fff">%Tổng DT</th>
+        <th style="background:#dc2626;color:#fff">Chi phí</th>
+        <th style="background:#dc2626;color:#fff">%DT</th>
+        <th style="background:#0d9f6e;color:#fff">Lợi nhuận</th>
+        <th style="background:#0d9f6e;color:#fff">Tỷ lệ LN</th>
+        <th>Hiệu suất</th>
       </tr></thead>
-      <tbody id="tbody-khach"><tr><td colspan="10" class="loading">⏳ Đang tải...</td></tr></tbody>
+      <tbody id="tbody-khach"></tbody>
     </table>
   </div>
 </div>
@@ -394,30 +427,79 @@ function renderXe(){
 function renderKhach(){
   const map={};
   filteredTrk.forEach(r=>{
-    const key=r.customer||"(chưa có KH)";
+    const key=(r.customer||"(chưa có KH)").trim();
     if(!map[key]) map[key]={customer:key,cusCode:r.cusCode||"",trips:0,km:0,rev:0,cost:0};
     const c=costStore[r.id]||{};
     map[key].trips++;
     map[key].km+=+r.km||0;
     map[key].rev+=+c.revenue||0;
     map[key].cost+=+c.cost||0;
+    if(r.cusCode) map[key].cusCode=r.cusCode;
   });
   const rows=Object.values(map).sort((a,b)=>b.rev-a.rev);
+
+  // KPI
+  const tRev=rows.reduce((s,r)=>s+r.rev,0);
+  const tCost=rows.reduce((s,r)=>s+r.cost,0);
+  const tProfit=tRev-tCost;
+  const tTrips=rows.reduce((s,r)=>s+r.trips,0);
+  const tKm=rows.reduce((s,r)=>s+r.km,0);
+  document.getElementById("kh-totalRev").textContent=fmt(tRev);
+  document.getElementById("kh-totalCost").textContent=fmt(tCost);
+  document.getElementById("kh-totalProfit").textContent=fmt(tProfit);
+  document.getElementById("kh-totalProfit").style.color=tProfit>=0?"var(--green)":"var(--red)";
+  document.getElementById("kh-totalTrips").textContent=tTrips;
+  document.getElementById("kh-totalKm").textContent=fmt(tKm)+" km";
+
+  // Stacked bar (top 8 + others)
+  const COLORS=["#1d6ef5","#e67700","#0d9f6e","#7c3aed","#dc2626","#0369a1","#d97706","#64748b"];
+  const barEl=document.getElementById("khStackedBar");
+  const legEl=document.getElementById("khBreakdownLegend");
+  if(tRev>0&&rows.length){
+    const top=rows.slice(0,8);
+    const otherRev=rows.slice(8).reduce((s,r)=>s+r.rev,0);
+    const segs=[...top.map((r,i)=>({label:r.customer,val:r.rev,color:COLORS[i%COLORS.length]}))];
+    if(otherRev>0) segs.push({label:"Khách khác",val:otherRev,color:"#94a3b8"});
+    barEl.innerHTML=segs.map(s=>{
+      const p=(s.val/tRev*100).toFixed(1);
+      return `<div style="width:${p}%;background:${s.color};min-width:${p>0?3:0}px;transition:.3s" title="${s.label}: ${fmt(s.val)} (${p}%)"></div>`;
+    }).join("");
+    legEl.innerHTML=segs.map(s=>{
+      const p=(s.val/tRev*100).toFixed(1);
+      return `<div style="display:flex;align-items:center;gap:5px">
+        <div style="width:11px;height:11px;border-radius:2px;background:${s.color};flex-shrink:0"></div>
+        <span style="color:var(--muted);font-size:12px">${s.label}</span>
+        <strong style="font-size:12px">${fmt(s.val)}</strong>
+        <span style="background:${s.color}18;border:1px solid ${s.color}44;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;color:${s.color}">${p}%</span>
+      </div>`;
+    }).join("");
+  } else {
+    barEl.innerHTML='<div style="width:100%;background:#e2e8f5;height:28px;border-radius:6px"></div>';
+    legEl.innerHTML='<span style="color:var(--muted);font-size:12px">Chưa có dữ liệu</span>';
+  }
+
+  // Table
   const tbody=document.getElementById("tbody-khach");
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="10" class="loading">Không có dữ liệu</td></tr>';return;}
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="12" class="loading">Không có dữ liệu</td></tr>';return;}
   tbody.innerHTML=rows.map((r,i)=>{
-    const profit=r.rev-r.cost, p=pct(r.rev,r.cost);
+    const profit=r.rev-r.cost;
+    const pln=r.rev?Math.round(profit/r.rev*100):0;
+    const pDt=tRev?Math.round(r.rev/tRev*100):0;
+    const pCostDt=r.rev?Math.round(r.cost/r.rev*100):0;
+    const cP=pln>=30?"#0d9f6e":pln>=10?"#e67700":"#dc2626";
     return `<tr>
       <td>${i+1}</td>
       <td class="tl" style="font-weight:700">${r.customer}</td>
-      <td>${r.cusCode}</td>
+      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${r.cusCode||"—"}</td>
       <td style="font-weight:600">${r.trips}</td>
-      <td class="num">${fmt(r.km)} km</td>
-      <td class="num" style="color:var(--accent)">${fmt(r.rev)}</td>
-      <td class="num" style="color:var(--red)">${fmt(r.cost)}</td>
-      <td>${badge(profit)}</td>
-      <td style="font-weight:700;color:${p>=0?"var(--green)":"var(--red)"}">${p}%</td>
-      <td>${bar(p)}</td>
+      <td class="num" style="color:var(--amber);font-weight:600">${fmt(r.km)} km</td>
+      <td class="num" style="color:var(--accent);font-weight:700">${fmt(r.rev)}</td>
+      <td><span style="background:#1d6ef518;border:1px solid #1d6ef544;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;color:#1d6ef5">${pDt}%</span></td>
+      <td class="num" style="color:var(--red);font-weight:700">${fmt(r.cost)}</td>
+      <td><span style="font-size:10.5px;font-weight:700;color:${pCostDt>80?"#dc2626":pCostDt>60?"#e67700":"#16a34a"}">${pCostDt}%</span></td>
+      <td class="num" style="color:${profit>=0?"var(--green)":"var(--red)"};font-weight:700">${profit>=0?"+":""}${fmt(profit)}</td>
+      <td style="font-weight:700;color:${cP}">${pln}%</td>
+      <td>${bar(pln)}</td>
     </tr>`;
   }).join("");
 }
