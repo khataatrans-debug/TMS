@@ -125,22 +125,27 @@ tr:hover td{background:#e8eeff!important;}
 })();
 </script>
 
-<!-- Firebase SDK (module) -->
-<script type="module">
-import { initializeApp }          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
-const firebaseConfig={
-  apiKey:"AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
-  authDomain:"transportation-6d6f5.firebaseapp.com",
-  databaseURL:"https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:"transportation-6d6f5",
-  storageBucket:"transportation-6d6f5.firebasestorage.app",
-  messagingSenderId:"1097685849973",
-  appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
-};
-const app  = initializeApp(firebaseConfig);
-const db   = getDatabase(app);
+<script>
+/* ── FIREBASE COMPAT (không dùng module để onclick hoạt động) ── */
+if(!firebase.apps.length){
+  firebase.initializeApp({
+    apiKey:"AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+    authDomain:"transportation-6d6f5.firebaseapp.com",
+    databaseURL:"https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:"transportation-6d6f5",
+    storageBucket:"transportation-6d6f5.firebasestorage.app",
+    messagingSenderId:"1097685849973",
+    appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
+  });
+}
+const _db   = firebase.database();
+const _ref  = (path) => _db.ref(path);
+const _onValue = (r,cb,eb) => r.on("value",cb,eb);
+const _set     = (r,val) => r.set(val);
+
 const MAINT_REF  = "maintenance_data";
 const MASTER_KEY = "MASTER_ALL_V4";
 
@@ -170,7 +175,7 @@ function loadMaster(){
 }
 loadMaster();
 // live-sync master khi master.html cập nhật
-onValue(ref(db,"master_data"),(snap)=>{
+_onValue(_ref("master_data"),(snap)=>{
   if(snap.exists()){
     masterDB=snap.val();
     masterDB.trucks=masterDB.trucks||[];
@@ -211,7 +216,7 @@ function setLastSync(){document.getElementById("lastSync").textContent="Cập nh
 
 /* ── FIREBASE ── */
 setSyncStatus("","Đang kết nối...");
-onValue(ref(db,MAINT_REF),(snap)=>{
+_onValue(_ref(MAINT_REF),(snap)=>{
   if(snap.exists()){
     DB=snap.val();
     DB.repairs=DB.repairs||[];
@@ -240,7 +245,7 @@ function saveDB(){
 }
 async function pushDB(){
   try{
-    await set(ref(db,MAINT_REF),DB);
+    await _set(_ref(MAINT_REF),DB);
     setSyncStatus("online","🟢 Đã lưu lên cloud");setLastSync();
   }catch(e){
     setSyncStatus("offline","🔴 Lỗi lưu");
