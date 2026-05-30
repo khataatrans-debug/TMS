@@ -47,6 +47,7 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
 .btn-accent{background:var(--accent);color:#fff;}
 .btn-gray{background:#f1f5f9;color:#475569;border:1px solid var(--border);}
 .btn-print{background:#f8fafc;color:#334155;border:1px solid var(--border);}
+.btn-excel{background:#16a34a;color:#fff;}
 .btn-sm{padding:3px 9px;font-size:11.5px;}
 
 /* COMPANY HEADER (Debit) */
@@ -147,6 +148,7 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
     <select id="dCus" style="width:180px"><option value="">-- Tất cả khách hàng --</option></select>
     <button class="btn btn-accent btn-sm" onclick="renderDebit()">Lọc</button>
     <button class="btn btn-gray btn-sm" onclick="clearDebit()">Reset</button>
+    <button class="btn btn-excel btn-sm" onclick="exportDebit()">↓ Excel</button>
     <div class="pill">Tổng: <strong id="dCount">0</strong> chuyến</div>
   </div>
 
@@ -222,6 +224,7 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
     <select id="sDriver" style="width:180px"><option value="">-- Tất cả lái xe --</option></select>
     <button class="btn btn-accent btn-sm" onclick="renderSalary()">Lọc</button>
     <button class="btn btn-gray btn-sm" onclick="clearSalary()">Reset</button>
+    <button class="btn btn-excel btn-sm" onclick="exportSalary()">↓ Excel</button>
     <div class="pill">Tổng: <strong id="sCount">0</strong> chuyến</div>
   </div>
 
@@ -575,6 +578,105 @@ window.renderSalary=function(){
   document.getElementById("sSumTrips").textContent=rows.length;
   document.getElementById("sSumDrivers").textContent=Object.keys(driverMap).length;
   document.getElementById("sSumAvg").textContent=fmt(avgWage);
+};
+
+/* ══════════════════════════════════════
+   EXPORT EXCEL
+══════════════════════════════════════ */
+function csvDownload(filename, rows){
+  const csv=rows.map(r=>r.map(c=>'"'+(String(c||"").replace(/"/g,'""'))+'"').join(",")).join("\n");
+  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+window.exportDebit=function(){
+  const kw=(document.getElementById("dSearch").value||"").toLowerCase().trim();
+  const from=document.getElementById("dFrom").value;
+  const to=document.getElementById("dTo").value;
+  const cus=document.getElementById("dCus").value;
+  let rows=[...trkStore];
+  if(kw) rows=rows.filter(r=>
+    (r.customer||"").toLowerCase().includes(kw)||
+    (r.cusCode||"").toLowerCase().includes(kw)||
+    (r.containerNo||"").toLowerCase().includes(kw)||
+    (r.vehicleNo||"").toLowerCase().includes(kw)||
+    (r.depot||"").toLowerCase().includes(kw)||
+    (r.port||"").toLowerCase().includes(kw)
+  );
+  if(from) rows=rows.filter(r=>(r.planDate||"")>=from);
+  if(to)   rows=rows.filter(r=>(r.planDate||"")<=to);
+  if(cus)  rows=rows.filter(r=>r.customer===cus);
+
+  const hdr=["#","Ngày","Khách hàng","Mã KH","Số xe","Container","Nơi lấy","Nơi hạ",
+    "Đơn giá VC","Phí nâng","Phí hạ","Cược cont","Phí khác",
+    "Ghi chú nơi lấy","Ghi chú nơi trả","Tổng trước thuế","VAT 10%","Tổng sau thuế"];
+  const data=rows.map((r,i)=>{
+    const c=costStore[r.id]||{};
+    const price=+r.price||0, lift=+c.lift||0, dropFee=+c.dropFee||0,
+          deposit=+c.deposit||0, other=+c.other||0;
+    const total=price+lift+dropFee+deposit+other;
+    const tax=Math.round(total*0.1);
+    return [i+1, fmtDate(r.planDate), r.customer||"", r.cusCode||"",
+      r.vehicleNo||"", r.containerNo||"", r.depot||"", r.port||"",
+      price, lift, dropFee, deposit, other,
+      r.depotNote||r.depot||"", r.portNote||r.port||"",
+      total, tax, total+tax];
+  });
+  csvDownload("CongNo_KhachHang.csv",[hdr,...data]);
+  showToast("✅ Xuất Excel công nợ thành công");
+};
+
+window.exportSalary=function(){
+  const kw=(document.getElementById("sSearch").value||"").toLowerCase().trim();
+  const from=document.getElementById("sFrom").value;
+  const to=document.getElementById("sTo").value;
+  const drv=document.getElementById("sDriver").value;
+  let rows=[...trkStore];
+  if(kw) rows=rows.filter(r=>
+    (r.driver||"").toLowerCase().includes(kw)||
+    (r.vehicleNo||"").toLowerCase().includes(kw)
+  );
+  if(from) rows=rows.filter(r=>(r.planDate||"")>=from);
+  if(to)   rows=rows.filter(r=>(r.planDate||"")<=to);
+  if(drv)  rows=rows.filter(r=>r.driver===drv);
+
+  // Sheet 1: Chi tiết
+  const hdr1=["#","Ngày","Lái xe","Số xe","Khách hàng","Container","Nơi lấy","Nơi hạ","KM","Lương chuyến","Ghi chú"];
+  const data1=rows.map((r,i)=>{
+    const c=costStore[r.id]||{};
+    const wage=+c.wage||+r.wage||0;
+    return [i+1, fmtDate(r.planDate), r.driver||"", r.vehicleNo||"",
+      r.customer||"", r.containerNo||"", r.depot||"", r.port||"",
+      r.km||0, wage, c.note||""];
+  });
+
+  // Sheet 2 header (tổng hợp theo lái xe) — ghép vào cùng file, cách 2 dòng trống
+  const hdr2=["#","Lái xe","Số xe","Số chuyến","Tổng KM","Tổng lương","Lương BQ/chuyến"];
+  const driverMap={};
+  rows.forEach(r=>{
+    const key=r.driver||"(Chưa có)";
+    if(!driverMap[key]) driverMap[key]={driver:key,vehicle:r.vehicleNo||"",trips:0,km:0,wage:0};
+    const c=costStore[r.id]||{};
+    driverMap[key].trips++;
+    driverMap[key].km+=+r.km||0;
+    driverMap[key].wage+=+c.wage||+r.wage||0;
+    if(r.vehicleNo) driverMap[key].vehicle=r.vehicleNo;
+  });
+  const data2=Object.values(driverMap).sort((a,b)=>b.wage-a.wage).map((d,i)=>[
+    i+1, d.driver, d.vehicle, d.trips, d.km,
+    d.wage, d.trips?Math.round(d.wage/d.trips):0
+  ]);
+
+  const allRows=[
+    hdr1,...data1,
+    [],[],["=== TỔNG HỢP THEO LÁI XE ==="],
+    hdr2,...data2
+  ];
+  csvDownload("BangLuong_LaiXe.csv", allRows);
+  showToast("✅ Xuất Excel bảng lương thành công");
 };
 </script>
 </body>
