@@ -114,7 +114,7 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
 
 <nav class="nav" id="mainNav">
   <div class="nav-right">
@@ -622,6 +622,10 @@ function xlDownload(wb, filename){
     a.href=URL.createObjectURL(blob);
     a.download=filename;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }).catch(err=>{
+    console.error("Excel error:", err);
+    showToast("❌ Lỗi xuất Excel: " + err.message, true);
   });
 }
 
@@ -631,6 +635,10 @@ function fmtNum(n){ return Number(n||0).toLocaleString("vi-VN"); }
    EXPORT CÔNG NỢ KHÁCH HÀNG
 ══════════════════════════════════════ */
 window.exportDebit=function(){
+  if(typeof ExcelJS==="undefined"){
+    showToast("⚠️ Đang tải thư viện Excel, vui lòng thử lại sau 2 giây!", true);
+    return;
+  }
   const kw=(document.getElementById("dSearch").value||"").toLowerCase().trim();
   const from=document.getElementById("dFrom").value;
   const to=document.getElementById("dTo").value;
@@ -851,6 +859,10 @@ window.exportDebit=function(){
    EXPORT BẢNG LƯƠNG LÁI XE
 ══════════════════════════════════════ */
 window.exportSalary=function(){
+  if(typeof ExcelJS==="undefined"){
+    showToast("⚠️ Đang tải thư viện Excel, vui lòng thử lại sau 2 giây!", true);
+    return;
+  }
   const kw=(document.getElementById("sSearch").value||"").toLowerCase().trim();
   const from=document.getElementById("sFrom").value;
   const to=document.getElementById("sTo").value;
