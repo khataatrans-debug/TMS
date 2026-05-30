@@ -70,6 +70,7 @@ tr:hover td{background:#e8eeff!important;}
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <nav class="nav" id="mainNav">
   <div class="nav-right">
@@ -142,14 +143,15 @@ tr:hover td{background:#e8eeff!important;}
         <th>Số xe</th>
         <th>Lái xe</th>
         <th>Số chuyến</th>
-        <th>Tổng KM</th>
+        <th>KM từ chuyến</th>
+        <th style="background:#0369a1;color:#fff">KM thực tế (đồng hồ)</th>
         <th style="background:#1d6ef5;color:#fff">Lít theo ĐM</th>
         <th style="background:#e67700;color:#fff">Lít đổ thực tế</th>
         <th style="background:#dc2626;color:#fff">Chênh lệch (lít)</th>
         <th style="background:#64748b;color:#fff">KM chạy rỗng</th>
         <th style="background:#166534;color:#fff">Tỷ lệ</th>
       </tr></thead>
-      <tbody id="tbody-xe"><tr><td colspan="10" class="loading">⏳ Đang tải...</td></tr></tbody>
+      <tbody id="tbody-xe"><tr><td colspan="11" class="loading">⏳ Đang tải...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -314,21 +316,23 @@ const ALL_NAV=[
 firebase.initializeApp({
   apiKey:"AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
   authDomain:"transportation-6d6f5.firebaseapp.com",
+  databaseURL:"https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId:"transportation-6d6f5",
   storageBucket:"transportation-6d6f5.firebasestorage.app",
   messagingSenderId:"1097685849973",
   appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db=firebase.firestore();
+const rtdb=firebase.database();
 
 let trkStore=[], costStore={}, filteredTrk=[];
 
-// Load trucking
+// Load trucking (Firestore)
 db.collection("trucking_plan").onSnapshot(snap=>{
   trkStore=snap.docs.map(d=>({id:d.id,...d.data()}));
   applyFilter();
 });
-// Load costs
+// Load costs (Firestore)
 db.collection("acc_costs").onSnapshot(snap=>{
   costStore={};
   snap.docs.forEach(d=>{costStore[d.id]=d.data();});
@@ -428,9 +432,9 @@ function renderXe(){
     });
   } catch(e){}
 
-  // ── Lọc maintenance records theo kỳ, lấy đổ nhiên liệu ──
-  const filtMaint=maintStore.filter(m=>{
-    const d=m.date||m.repairDate||m.planDate||m.fuelDate||"";
+  // ── Lọc fuelStore theo kỳ (field: date, truck, liters) ──
+  const filtFuel=fuelStore.filter(f=>{
+    const d=f.date||"";
     if(year  && !d.startsWith(year))  return false;
     if(month && d.slice(5,7)!==month) return false;
     if(from  && d<from)               return false;
@@ -438,13 +442,16 @@ function renderXe(){
     return true;
   });
 
-  // ── Tổng lít đổ thực tế theo xe (từ maintenance) ──
+  // ── Tổng lít đổ thực tế + KM đồng hồ cao nhất theo xe ──
   const fuelByXe={};
-  filtMaint.forEach(m=>{
-    const xe=(m.vehicleNo||m.truck||m.vehicle||"").trim();
+  const kmAtByXe={};   // kmAt lớn nhất trong kỳ = km đồng hồ thực tế
+  filtFuel.forEach(f=>{
+    const xe=(f.truck||"").trim();
     if(!xe) return;
-    const liters=+m.liters||+m.fuelLiters||+m.quantity||+m.fuelAmount||+m.litres||+m.fuel||0;
+    const liters=+f.liters||0;
+    const kmAt  =+f.kmAt  ||0;
     if(liters>0) fuelByXe[xe]=(fuelByXe[xe]||0)+liters;
+    if(kmAt>0)   kmAtByXe[xe]=Math.max(kmAtByXe[xe]||0, kmAt);
   });
 
   // ── Gộp trucking theo xe ──
@@ -491,7 +498,8 @@ function renderXe(){
   tbody.innerHTML=rows.map((r,i)=>{
     const norm=normByXe[r.vehicle]||DEFAULT_NORM;
     const hasMasterNorm=!!normByXe[r.vehicle];
-    const litDM=r.km*(norm/100);
+    const kmAt=kmAtByXe[r.vehicle]||0;       // KM đồng hồ thực tế (từ lần đổ dầu mới nhất)
+    const litDM=r.km*(norm/100);             // lít theo định mức (dựa KM chuyến)
     const litTT=fuelByXe[r.vehicle]||0;
     const cl=litTT-litDM;
     const kmRong=cl>0?Math.round(cl/(norm/100)):0;
@@ -508,6 +516,7 @@ function renderXe(){
           ĐM: ${norm} lít/100km${hasMasterNorm?"":"*"}
         </div>
       </td>
+      <td class="num" style="color:#0369a1;font-weight:700">${kmAt>0?fmt(kmAt)+' km':'<span style="color:#94a3b8">—</span>'}</td>
       <td class="num" style="color:#1d6ef5;font-weight:700">${litDM.toFixed(1)} lít</td>
       <td class="num" style="color:#e67700;font-weight:700">${litTT>0?litTT.toFixed(1)+" lít":'<span style="color:#94a3b8">—</span>'}</td>
       <td class="num" style="color:${clColor};font-weight:700">${litTT>0?(cl>=0?"+":"")+cl.toFixed(1)+" lít":'<span style="color:#94a3b8">—</span>'}</td>
@@ -516,7 +525,7 @@ function renderXe(){
     </tr>`;
   }).join("")+
   `<tr style="background:#f8faff">
-    <td colspan="5" style="font-weight:700;text-align:right;color:var(--muted)">* Định mức mặc định (chưa có trong Master)</td>
+    <td colspan="6" style="font-weight:700;text-align:right;color:var(--muted)">* Định mức mặc định (chưa có trong Master)</td>
     <td class="num" style="color:#1d6ef5;font-weight:700">${tLitDM.toFixed(1)} lít</td>
     <td class="num" style="color:#e67700;font-weight:700">${tLitTT>0?tLitTT.toFixed(1)+" lít":"—"}</td>
     <td class="num" style="color:${tCL>0?"var(--red)":tCL<0?"var(--green)":"var(--muted)"};font-weight:700">${tLitTT>0?(tCL>=0?"+":"")+tCL.toFixed(1)+" lít":"—"}</td>
@@ -681,19 +690,41 @@ window.openTab=function(id,el){
   el.classList.add("active");
 };
 
-/* ── Load maintenance ── */
-let maintStore=[];
-(function loadMaint(){
-  const tryCol=name=>{
-    db.collection(name).onSnapshot(snap=>{
-      maintStore=snap.docs.map(d=>({id:d.id,...d.data()}));
-      renderSuaChua();
-      renderXe(); // cập nhật tab KM & Nhiên liệu khi có data maintenance
-    },()=>{});
-  };
-  tryCol("maintenance_records");
-  tryCol("maintenance");
-})();
+/* ── Load maintenance từ Firebase Realtime DB (node: maintenance_data) ── */
+// DB.fuels[]: { date, truck, driver, station, liters, unitPrice, total, kmAt, kmPrev, consume, rate, note }
+// DB.repairs[]: { date, vehicle, ... }
+let maintStore=[];   // repairs (cho tab Chi phí & Hiệu suất)
+let fuelStore=[];    // fuels   (cho tab KM & Nhiên liệu)
+
+rtdb.ref("maintenance_data").on("value", snap=>{
+  if(snap.exists()){
+    const data=snap.val();
+    // repairs → maintStore (dùng cho renderSuaChua)
+    maintStore=Array.isArray(data.repairs)?data.repairs
+      :(data.repairs?Object.values(data.repairs):[]);
+    // fuels → fuelStore (dùng cho renderXe)
+    fuelStore=Array.isArray(data.fuels)?data.fuels
+      :(data.fuels?Object.values(data.fuels):[]);
+  } else {
+    // fallback localStorage
+    try{
+      const local=JSON.parse(localStorage.getItem("MAINT_DATA")||"{}");
+      maintStore=local.repairs||[];
+      fuelStore =local.fuels  ||[];
+    }catch(e){}
+  }
+  renderSuaChua();
+  renderXe();
+},()=>{
+  // fallback localStorage nếu lỗi kết nối
+  try{
+    const local=JSON.parse(localStorage.getItem("MAINT_DATA")||"{}");
+    maintStore=local.repairs||[];
+    fuelStore =local.fuels  ||[];
+    renderSuaChua();
+    renderXe();
+  }catch(e){}
+});
 
 /* ══════════════════════════════════════════════
    renderSuaChua — Chi phí & Hiệu suất
@@ -713,11 +744,12 @@ function renderSuaChua(){
     return true;
   });
 
-  // CP sửa chữa từ maintenance, map theo xe
+  // CP sửa chữa từ maintenance repairs, map theo xe
+  // repair object: { date, vehicle, desc, total, ... }
   const maintByXe={};
   filtMaint.forEach(m=>{
-    const xe=(m.vehicleNo||m.truck||m.vehicle||"").trim()||"__maint__";
-    maintByXe[xe]=(maintByXe[xe]||0)+(+m.cost||+m.totalCost||+m.amount||0);
+    const xe=(m.vehicle||m.vehicleNo||m.truck||"").trim()||"__maint__";
+    maintByXe[xe]=(maintByXe[xe]||0)+(+m.total||+m.cost||+m.totalCost||+m.amount||0);
   });
 
   // Tổng hợp trucking theo xe
