@@ -116,7 +116,7 @@ tr:hover td{background:#e8eeff!important;}
 
 <!-- TABS -->
 <div class="tabs-wrap">
-  <button class="tab-btn active" onclick="openTab('xe',this)">🚛 Theo xe</button>
+  <button class="tab-btn active" onclick="openTab('xe',this)">⛽ Quản lý KM & Nhiên liệu</button>
   <button class="tab-btn" onclick="openTab('khach',this)">📦 Hiệu suất khách hàng</button>
   <button class="tab-btn" onclick="openTab('thang',this)">📅 Theo tháng</button>
   <button class="tab-btn" onclick="openTab('suachua',this)">🔧 Chi phí & Hiệu suất</button>
@@ -124,11 +124,30 @@ tr:hover td{background:#e8eeff!important;}
 
 <!-- TAB XE -->
 <div id="tab-xe">
-  <div class="tbl-wrap">
+  <!-- KPI cards cho tab KM & Nhiên liệu -->
+  <div class="sum-row" style="padding-bottom:4px">
+    <div class="sum-card"><div class="lbl">Tổng KM thực tế</div><div class="val" id="km-totalKm" style="color:var(--amber);font-size:18px">—</div></div>
+    <div class="sum-card"><div class="lbl">Lít theo định mức</div><div class="val" id="km-litDM" style="color:var(--accent);font-size:18px">—</div></div>
+    <div class="sum-card"><div class="lbl">Lít đổ thực tế</div><div class="val" id="km-litTT" style="color:#e67700;font-size:18px">—</div></div>
+    <div class="sum-card"><div class="lbl">Chênh lệch</div><div class="val" id="km-litCL" style="color:var(--red);font-size:18px">—</div></div>
+    <div class="sum-card"><div class="lbl">KM chạy rỗng (ước tính)</div><div class="val" id="km-kmRong" style="color:var(--muted);font-size:18px">—</div></div>
+  </div>
+  <div style="margin:14px 18px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:6px;border-bottom:1px solid var(--border)">
+    ⛽ Phân tích KM & Nhiên liệu theo xe
+  </div>
+  <div class="tbl-wrap" style="margin:8px 18px 24px">
     <table>
       <thead><tr>
-        <th>#</th><th>Số xe</th><th>Lái xe</th><th>Số chuyến</th><th>Tổng KM</th>
-        <th>Doanh thu</th><th>Chi phí</th><th>Lợi nhuận</th><th>Tỷ lệ LN</th><th>Hiệu suất</th>
+        <th>#</th>
+        <th>Số xe</th>
+        <th>Lái xe</th>
+        <th>Số chuyến</th>
+        <th>Tổng KM</th>
+        <th style="background:#1d6ef5;color:#fff">Lít theo ĐM</th>
+        <th style="background:#e67700;color:#fff">Lít đổ thực tế</th>
+        <th style="background:#dc2626;color:#fff">Chênh lệch (lít)</th>
+        <th style="background:#64748b;color:#fff">KM chạy rỗng</th>
+        <th style="background:#166534;color:#fff">Tỷ lệ</th>
       </tr></thead>
       <tbody id="tbody-xe"><tr><td colspan="10" class="loading">⏳ Đang tải...</td></tr></tbody>
     </table>
@@ -390,38 +409,120 @@ function updateSummary(){
   document.getElementById("totalKm").textContent=fmt(km)+" km";
 }
 
-/* TAB XE */
+/* TAB XE — Quản lý KM & Nhiên liệu */
 function renderXe(){
+  const month=document.getElementById("selMonth").value;
+  const year =document.getElementById("selYear").value;
+  const from =document.getElementById("fromDate").value;
+  const to   =document.getElementById("toDate").value;
+
+  // ── Đọc định mức từ Master Data (localStorage MASTER_ALL_V4) ──
+  // Truck object: { truck: "51C-xxx", driver: "...", fuel: "30" (lít/100km) }
+  const normByXe={};
+  try {
+    const master=JSON.parse(localStorage.getItem("MASTER_ALL_V4")||"{}");
+    (master.trucks||[]).forEach(t=>{
+      const xe=(t.truck||"").trim();
+      const norm=parseFloat(t.fuel)||0;
+      if(xe && norm>0) normByXe[xe]=norm;
+    });
+  } catch(e){}
+
+  // ── Lọc maintenance records theo kỳ, lấy đổ nhiên liệu ──
+  const filtMaint=maintStore.filter(m=>{
+    const d=m.date||m.repairDate||m.planDate||m.fuelDate||"";
+    if(year  && !d.startsWith(year))  return false;
+    if(month && d.slice(5,7)!==month) return false;
+    if(from  && d<from)               return false;
+    if(to    && d>to)                 return false;
+    return true;
+  });
+
+  // ── Tổng lít đổ thực tế theo xe (từ maintenance) ──
+  const fuelByXe={};
+  filtMaint.forEach(m=>{
+    const xe=(m.vehicleNo||m.truck||m.vehicle||"").trim();
+    if(!xe) return;
+    const liters=+m.liters||+m.fuelLiters||+m.quantity||+m.fuelAmount||+m.litres||+m.fuel||0;
+    if(liters>0) fuelByXe[xe]=(fuelByXe[xe]||0)+liters;
+  });
+
+  // ── Gộp trucking theo xe ──
   const map={};
   filteredTrk.forEach(r=>{
-    const key=r.vehicleNo||"(chưa có xe)";
-    if(!map[key]) map[key]={vehicle:key,driver:r.driver||"",trips:0,km:0,rev:0,cost:0};
-    const c=costStore[r.id]||{};
+    const key=(r.vehicleNo||"(chưa có xe)").trim();
+    if(!map[key]) map[key]={vehicle:key,driver:r.driver||"",trips:0,km:0};
     map[key].trips++;
     map[key].km+=+r.km||0;
-    map[key].rev+=+c.revenue||0;
-    map[key].cost+=+c.cost||0;
     if(r.driver) map[key].driver=r.driver;
   });
-  const rows=Object.values(map).sort((a,b)=>b.rev-a.rev);
-  const maxRev=Math.max(...rows.map(r=>r.rev),1);
+  // Thêm xe có đổ nhiên liệu nhưng không có chuyến trong kỳ
+  Object.keys(fuelByXe).forEach(xe=>{
+    if(!map[xe]) map[xe]={vehicle:xe,driver:"",trips:0,km:0};
+  });
+
+  const DEFAULT_NORM=30; // lít/100km fallback
+  const rows=Object.values(map).sort((a,b)=>b.km-a.km);
+
+  // ── KPI tổng ──
+  let tKm=0,tLitDM=0,tLitTT=0;
+  rows.forEach(r=>{
+    const norm=normByXe[r.vehicle]||DEFAULT_NORM;
+    tKm+=r.km;
+    tLitDM+=r.km*(norm/100);
+    tLitTT+=fuelByXe[r.vehicle]||0;
+  });
+  const tCL=tLitTT-tLitDM;
+  // KM chạy rỗng tổng: dùng trung bình định mức có dữ liệu hoặc DEFAULT
+  const avgNorm=rows.length?rows.reduce((s,r)=>s+(normByXe[r.vehicle]||DEFAULT_NORM),0)/rows.length:DEFAULT_NORM;
+  const tKmRong=tCL>0?Math.round(tCL/(avgNorm/100)):0;
+
+  document.getElementById("km-totalKm").textContent=fmt(tKm)+" km";
+  document.getElementById("km-litDM").textContent=tLitDM.toFixed(1)+" lít";
+  document.getElementById("km-litTT").textContent=tLitTT>0?tLitTT.toFixed(1)+" lít":"—";
+  const clEl=document.getElementById("km-litCL");
+  clEl.textContent=tLitTT>0?(tCL>=0?"+":"")+tCL.toFixed(1)+" lít":"—";
+  clEl.style.color=tCL>0?"var(--red)":tCL<0?"var(--green)":"var(--muted)";
+  document.getElementById("km-kmRong").textContent=tKmRong>0?fmt(tKmRong)+" km":"—";
+
+  // ── Render bảng ──
   const tbody=document.getElementById("tbody-xe");
   if(!rows.length){tbody.innerHTML='<tr><td colspan="10" class="loading">Không có dữ liệu</td></tr>';return;}
   tbody.innerHTML=rows.map((r,i)=>{
-    const profit=r.rev-r.cost, p=pct(r.rev,r.cost);
+    const norm=normByXe[r.vehicle]||DEFAULT_NORM;
+    const hasMasterNorm=!!normByXe[r.vehicle];
+    const litDM=r.km*(norm/100);
+    const litTT=fuelByXe[r.vehicle]||0;
+    const cl=litTT-litDM;
+    const kmRong=cl>0?Math.round(cl/(norm/100)):0;
+    const tyLe=litDM>0?Math.round(litTT/litDM*100):0;
+    const clColor=cl>0?"var(--red)":cl<0?"var(--green)":"var(--muted)";
+    const tyLeColor=tyLe>110?"var(--red)":tyLe>100?"#e67700":tyLe>0?"var(--green)":"var(--muted)";
     return `<tr>
       <td>${i+1}</td>
-      <td style="font-weight:700;font-family:monospace">${r.vehicle}</td>
-      <td class="tl">${r.driver}</td>
+      <td style="font-weight:700;font-family:monospace;white-space:nowrap">${r.vehicle}</td>
+      <td class="tl" style="white-space:nowrap">${r.driver||"—"}</td>
       <td style="font-weight:600">${r.trips}</td>
-      <td class="num">${fmt(r.km)} km</td>
-      <td class="num" style="color:var(--accent)">${fmt(r.rev)}</td>
-      <td class="num" style="color:var(--red)">${fmt(r.cost)}</td>
-      <td>${badge(profit)}</td>
-      <td style="font-weight:700;color:${p>=0?"var(--green)":"var(--red)"}">${p}%</td>
-      <td>${bar(p)}</td>
+      <td class="num" style="color:var(--amber);font-weight:700">${fmt(r.km)} km
+        <div style="font-size:10px;color:${hasMasterNorm?"var(--accent)":"#94a3b8"};font-weight:${hasMasterNorm?700:400}">
+          ĐM: ${norm} lít/100km${hasMasterNorm?"":"*"}
+        </div>
+      </td>
+      <td class="num" style="color:#1d6ef5;font-weight:700">${litDM.toFixed(1)} lít</td>
+      <td class="num" style="color:#e67700;font-weight:700">${litTT>0?litTT.toFixed(1)+" lít":'<span style="color:#94a3b8">—</span>'}</td>
+      <td class="num" style="color:${clColor};font-weight:700">${litTT>0?(cl>=0?"+":"")+cl.toFixed(1)+" lít":'<span style="color:#94a3b8">—</span>'}</td>
+      <td class="num" style="color:var(--muted);font-weight:700">${kmRong>0?fmt(kmRong)+" km":'<span style="color:#94a3b8">—</span>'}</td>
+      <td style="font-weight:700;color:${tyLeColor}">${tyLe>0?tyLe+"%":"—"}</td>
     </tr>`;
-  }).join("");
+  }).join("")+
+  `<tr style="background:#f8faff">
+    <td colspan="5" style="font-weight:700;text-align:right;color:var(--muted)">* Định mức mặc định (chưa có trong Master)</td>
+    <td class="num" style="color:#1d6ef5;font-weight:700">${tLitDM.toFixed(1)} lít</td>
+    <td class="num" style="color:#e67700;font-weight:700">${tLitTT>0?tLitTT.toFixed(1)+" lít":"—"}</td>
+    <td class="num" style="color:${tCL>0?"var(--red)":tCL<0?"var(--green)":"var(--muted)"};font-weight:700">${tLitTT>0?(tCL>=0?"+":"")+tCL.toFixed(1)+" lít":"—"}</td>
+    <td class="num" style="color:var(--muted);font-weight:700">${tKmRong>0?fmt(tKmRong)+" km":"—"}</td>
+    <td></td>
+  </tr>`;
 }
 
 /* TAB KHÁCH */
@@ -587,6 +688,7 @@ let maintStore=[];
     db.collection(name).onSnapshot(snap=>{
       maintStore=snap.docs.map(d=>({id:d.id,...d.data()}));
       renderSuaChua();
+      renderXe(); // cập nhật tab KM & Nhiên liệu khi có data maintenance
     },()=>{});
   };
   tryCol("maintenance_records");
